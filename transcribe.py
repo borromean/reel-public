@@ -45,6 +45,8 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+if sys.version_info < (3, 9):
+    raise SystemExit(f"Reel needs Python 3.9 or newer; {sys.executable} is {sys.version.split()[0]}")
 ROOT = Path(__file__).resolve().parent
 # Local settings and secrets: KEY=value lines in .env next to this script
 # (gitignored) — ELEVENLABS_API_KEY and ANTHROPIC_API_KEY, which ⚙ SETTINGS
@@ -71,13 +73,14 @@ def _load_env_file(path=ENV_FILE):
 
 
 _load_env_file()
-# All data lives under one folder, ~/Reel unless REEL_DATA says otherwise,
-# with the recordings filed in folders of your choosing:
+# All data lives under one folder, ~/Reel Recordings unless REEL_DATA says
+# otherwise (never the code's own folder: see check_data_folder), with the
+# recordings filed in folders of your choosing:
 #   <DATA>/general/<recording>    where new recordings land (REEL_GROUP picks another)
 #   <DATA>/<folder>/<recording>   any folder you move recordings into
 #   <DATA>/inbox                  recorder files waiting to be sorted
 #   <DATA>/archive                deleted recordings and inbox files
-DATA = Path(os.environ.get("REEL_DATA") or Path.home() / "Reel").expanduser()
+DATA = Path(os.environ.get("REEL_DATA") or Path.home() / "Reel Recordings").expanduser()
 STATIC = ROOT / "static"
 INBOX = Path(os.environ.get("REEL_INBOX") or DATA / "inbox").expanduser()
 ARCHIVE_DIR = "archive"
@@ -1136,6 +1139,7 @@ def generate_title(item_id):
     replaces a title typed by hand too), or None when none came back."""
     with LOCK:
         item = ITEMS.get(item_id)
+        based_on = item and item.get("transcript_id")
     key = anthropic_key()
     if item is None or not key:
         return None
@@ -1175,6 +1179,8 @@ def generate_title(item_id):
         title = text.strip().splitlines()[0].strip().strip('"“”').rstrip(".").strip()
         if 0 < len(title) <= 90:
             with LOCK:
+                if item["status"] != "ready" or item.get("transcript_id") != based_on:
+                    return None  # rebuilt meanwhile (a mic added): its new transcript gets its own title
                 item["ai_title"] = title
                 item.pop("title_manual", None)
             save_item(item)
@@ -2370,13 +2376,11 @@ def late_match_pass():
         with INBOX_LOCK:
             if any(s["status"] not in ("skipped",) for s in INBOX_STATE.values()):
                 return  # files being sorted may be about to attach; wait for them
-        with LOCK:
+        with LOCK:  # (both of a pair need all their files: a rebuild starts from them)
             ready = [dict(i) for i in ITEMS.values()
                      if i["status"] == "ready" and i.get("clean_status") != "working"
-                     and _from_recorder(i) and _item_span(i) and audio_path(i).is_file()]
+                     and _from_recorder(i) and _item_span(i) and _files_here(i)]
         for donor in ready:
-            if not _files_here(donor):
-                continue
             for keeper in ready:
                 if keeper["id"] == donor["id"] or _keeper_of(keeper, donor) is not keeper:
                     continue
@@ -2400,6 +2404,7 @@ def late_match_pass():
                       f"“{keeper.get('ai_title') or keeper['title']}” (score {score:.0f}) — merging")
                 if merge_into(keeper["id"], donor["id"]) is None:
                     LATE_CHECKED.discard(pair)  # one of them was busy: try again on a later pass
+                    continue
                 return  # one merge per pass; the library has changed
     finally:
         LATE_LOCK.release()
@@ -2412,7 +2417,8 @@ def merge_into(keeper_id, donor_id):
     with LOCK:
         keeper, donor = ITEMS.get(keeper_id), ITEMS.get(donor_id)
         if (keeper is None or donor is None or donor["status"] not in ("ready", "error")
-                or keeper["status"] not in ("ready", "error") or keeper.get("clean_status") == "working"):
+                or keeper["status"] not in ("ready", "error") or keeper.get("clean_status") == "working"
+                or not _files_here(keeper)):
             return None
         staging = None
         if donor.get("tracks"):
@@ -2427,19 +2433,21 @@ def merge_into(keeper_id, donor_id):
                 shutil.move(str(mics[0][0]), audio_path(donor))
                 shutil.rmtree(staging, ignore_errors=True)
             return None
-        ITEMS.pop(donor_id, None)
-        ITEM_MTIME.pop(donor_id, None)
         keeper.setdefault("merged", []).append({"id": donor_id, "title": donor.get("ai_title") or donor["title"]})
         if donor.get("no_training"):
             keeper["no_training"] = True  # audio kept out of training stays out once merged
         keeper["training_ask"] = join_notes(keeper.get("training_ask"), donor.get("training_ask"))
         tidy_notes(keeper)
-        try:  # (under the lock: the rescan would otherwise see the donor's folder and bring it back)
-            dst = archive_item(donor)
-            print(f"  late match: separate copy archived to {dst.name if dst else '(already gone)'}")
-        except OSError as err:
-            print(f"  late match: couldn't archive {donor_id}: {err}")
+        donor["status"] = "merging"  # in memory only: busy, so the rescan leaves its folder alone meanwhile
     save_item(keeper)
+    try:
+        dst = archive_item(donor)
+        print(f"  late match: separate copy archived to {dst.name if dst else '(already gone)'}")
+    except OSError as err:
+        print(f"  late match: couldn't archive {donor_id}: {err}")
+    with LOCK:
+        ITEMS.pop(donor_id, None)
+        ITEM_MTIME.pop(donor_id, None)
     if staging:
         shutil.rmtree(staging, ignore_errors=True)
     return keeper_id
@@ -3332,10 +3340,28 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         return self.rfile.read(length) if length > 0 else b""
 
+    def refused(self, changes):
+        """Turn away what a web page elsewhere asks of this server: a Host that
+        isn't this server (a site whose name was pointed at 127.0.0.1, to read
+        the transcripts) or, for a request that changes something, an Origin
+        that isn't this page (a site posting a key or settings of its own).
+        Reel's own page, and the command line, pass. True when refused."""
+        port = self.server.server_address[1]
+        ours = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        origin = self.headers.get("Origin")
+        if (self.headers.get("Host") or "").lower() in ours and \
+                not (changes and origin is not None and origin.lower() not in {"http://" + h for h in ours}):
+            return False
+        self.close_connection = True  # (its body is left unread)
+        self.fail(403, "Reel only answers its own page")
+        return True
+
     # ---- routes
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
+        if self.refused(changes=False):
+            return
         try:
             if path in ("/", "/index.html"):
                 page = STATIC / "index.html"
@@ -3415,6 +3441,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
+        if self.refused(changes=True):
+            return
         try:
             if parsed.path == "/api/upload":
                 return self.handle_upload(parsed)
@@ -3515,7 +3543,15 @@ class Handler(BaseHTTPRequestHandler):
                 self.close_connection = True
 
     def handle_upload(self, parsed):
-        name = urllib.parse.parse_qs(parsed.query).get("name", [""])[0]
+        """?name=<file name>[&mtime=<epoch seconds>]: the file as the body. The
+        mtime — the original file's, which the browser and the command line
+        know — dates the recording when its name doesn't."""
+        query = urllib.parse.parse_qs(parsed.query)
+        name = query.get("name", [""])[0]
+        try:
+            mtime = float(query["mtime"][0])
+        except (KeyError, ValueError):
+            mtime = None
         ext = Path(name).suffix.lower()
         if ext not in AUDIO_EXTS:
             return self.fail(400, f"Unsupported file type: {ext or '(none)'}")
@@ -3532,6 +3568,8 @@ class Handler(BaseHTTPRequestHandler):
                         raise IOError("Upload ended early")
                     out.write(chunk)
                     remaining -= len(chunk)
+            if mtime and 0 < mtime < time.time() + 86400:
+                os.utime(tmp, (mtime, mtime))
             item = add_file(tmp, title=Path(name).name, move=True)
         finally:
             tmp.unlink(missing_ok=True)
@@ -3689,6 +3727,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         path = urllib.parse.urlparse(self.path).path
+        if self.refused(changes=True):
+            return
         m = re.fullmatch(r"/api/inbox/(.+)", path)
         if m:
             name = urllib.parse.unquote(m.group(1))
@@ -3781,21 +3821,37 @@ def find_port(start):
     raise SystemExit("No free port found")
 
 
+def _within(a, b):
+    """Whether folder a is folder b or inside it — compared as the folders
+    themselves, since macOS usually ignores case (~/reel is ~/Reel)."""
+    for p in (a, *a.parents):
+        try:
+            if os.path.samefile(p, b):
+                return True
+        except OSError:
+            continue
+    return False
+
+
 def check_data_folder():
-    """~/Reel (or REEL_DATA) holds everything. The default is made on first
-    start; a REEL_DATA that isn't there is refused rather than made — it may be
-    a disk that isn't plugged in, and an empty library in its place would
-    quietly take the new recordings."""
-    if DATA.is_dir():
-        return
-    if DATA.exists():
+    """~/Reel Recordings (or REEL_DATA) holds everything. The default is made
+    on first start; a REEL_DATA that isn't there is refused rather than made —
+    it may be a disk that isn't plugged in, and an empty library in its place
+    would quietly take the new recordings. Neither may be, or be inside, the
+    code's folder (or hold it): the code's folders would pass for recording
+    folders, and git would see the recordings."""
+    if DATA.exists() and not DATA.is_dir():
         raise SystemExit(f"Data folder {DATA} is not a directory")
-    if DATA.is_symlink():
-        raise SystemExit(f"{DATA} is a link to {os.readlink(DATA)}, which isn't there — a disk not plugged in?")
-    if os.environ.get("REEL_DATA"):
-        raise SystemExit(f"No data folder at {DATA} (REEL_DATA) — create it, or plug in the disk it's on")
-    DATA.mkdir(parents=True)
-    print(f"  made {DATA} for your recordings (REEL_DATA in .env keeps them elsewhere)")
+    if not DATA.exists():
+        if DATA.is_symlink():
+            raise SystemExit(f"{DATA} is a link to {os.readlink(DATA)}, which isn't there — a disk not plugged in?")
+        if os.environ.get("REEL_DATA"):
+            raise SystemExit(f"No data folder at {DATA} (REEL_DATA) — create it, or plug in the disk it's on")
+        DATA.mkdir(parents=True)
+        print(f"  made {DATA} for your recordings (REEL_DATA in .env keeps them elsewhere)")
+    if _within(DATA, ROOT) or _within(ROOT, DATA):
+        raise SystemExit(f"The data folder {DATA} and Reel's code folder {ROOT} overlap. Keep them apart: "
+                         f"move the code elsewhere, or set REEL_DATA in {ENV_FILE} to another folder.")
 
 
 def _hand_over(url, files):
@@ -3809,7 +3865,8 @@ def _hand_over(url, files):
             continue
         try:
             with open(src, "rb") as f:
-                req = urllib.request.Request(f"{url}/api/upload?name={urllib.parse.quote(src.name)}", data=f,
+                query = urllib.parse.urlencode({"name": src.name, "mtime": src.stat().st_mtime})
+                req = urllib.request.Request(f"{url}/api/upload?{query}", data=f,
                                              method="POST", headers={"Content-Length": str(src.stat().st_size)})
                 with urllib.request.urlopen(req, timeout=3600) as resp:
                     print(f"Queued in the running Reel: {json.loads(resp.read())['item']['title']}")
@@ -3828,7 +3885,7 @@ def claim_library():
     lock = open(DATA / ".reel.lock", "a+")
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
+    except BlockingIOError:  # held: another Reel runs here
         lock.seek(0)
         url = lock.read().strip()
         args = sys.argv[1:]
@@ -3843,6 +3900,8 @@ def claim_library():
         if url.startswith("http") and "--no-browser" not in args:
             webbrowser.open(url)
         raise SystemExit(f"Reel is already running on {DATA}" + (f" at {url}" if url else ""))
+    except OSError as err:  # a folder that can't be locked (some network drives): go ahead without
+        print(f"  note: couldn't lock {DATA} ({err.strerror}) — don't start a second Reel on it")
     return lock
 
 
@@ -4024,7 +4083,8 @@ def main():
     backup_soon()
     INBOX.mkdir(exist_ok=True)
     if mt is None:
-        print(f"⚠  Multi-mic support is off: {MULTITRACK_ERROR}. `pip3 install numpy` to enable it.")
+        print(f"⚠  Multi-mic recordings, cutting and splitting are off: {MULTITRACK_ERROR}. "
+              f"Run bin/setup.sh to install numpy, then start Reel again (it's needed for {sys.executable}).")
     else:
         threading.Thread(target=relabel_outdated, daemon=True).start()
         if "--ingest" in sys.argv:
@@ -4049,8 +4109,9 @@ def main():
     lock.write(url)  # for a second Reel started on this folder: it opens this one instead
     lock.flush()
     print(f"Reel is running at {url}   (Ctrl-C to stop)" + (f"   code {CODE_VERSION}" if CODE_VERSION else ""))
-    print(f"Your recordings are in {DATA}. Drop recorder files into {INBOX} — "
-          f"they're matched and transcribed automatically.")
+    print(f"Your recordings are in {DATA}."
+          + (f" Drop recorder files into {INBOX} — they're matched and transcribed automatically."
+             if mt is not None else ""))
     if "--no-browser" not in sys.argv:
         webbrowser.open(url)
     try:

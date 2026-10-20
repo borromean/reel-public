@@ -57,7 +57,7 @@ python3 transcribe.py
 Reel opens in your browser at `http://127.0.0.1:8765` and asks for your keys:
 click **⚙ ADD YOUR API KEYS** (or **⚙ SETTINGS**), paste the ElevenLabs key,
 and Reel checks it with ElevenLabs and keeps it. Then drop an audio file on
-the page. Your recordings live in `~/Reel`; Reel runs until you press Ctrl-C
+the page. Your recordings live in `~/Reel Recordings`; Reel runs until you press Ctrl-C
 in its Terminal window.
 
 **Easiest of all, with [Claude Code](https://claude.com/claude-code):** open
@@ -76,7 +76,7 @@ pile of files into a single recording whose speakers are known for certain.
 
 **Plug the mics in** (USB) while Reel is running, all of them if you can: a DJI
 transmitter mounts as a "Mic Tx" volume, and Reel copies its new recordings
-into the inbox (`~/Reel/inbox/`) by itself — the raw `_orig` of each take, its
+into the inbox (`~/Reel Recordings/inbox/`) by itself — the raw `_orig` of each take, its
 `_edit` twin into `inbox/skipped/` (Reel doesn't use it; empty that folder
 whenever), only files it hasn't seen (not in the inbox, the library, the
 archive, or copied before: `inbox/.imported.json`). The recordings stay on the
@@ -322,7 +322,7 @@ with the new terms.
 - Key: the Anthropic one in ⚙ SETTINGS (or `ANTHROPIC_API_KEY`). Anthropic
   doesn't train on API data; requests are retained per their standard API
   policy.
-- The choices live in `~/Reel/<folder>/<id>/clean.json`: `removed` (hidden word
+- The choices live in `~/Reel Recordings/<folder>/<id>/clean.json`: `removed` (hidden word
   indices) and `edits` (span rewrites) — plain JSON, easy to hand-correct.
 
 ## API keys and privacy
@@ -506,16 +506,16 @@ uploaded; in *Mirror files* mode they do, which doubles the space your
 recordings take.
 
 To restore a recording, copy its folder from `Reel backup/<folder>/` back into
-`~/Reel/<folder>/`; Reel picks it up within seconds.
+`~/Reel Recordings/<folder>/`; Reel picks it up within seconds.
 
 ## Where things live
 
 ```
-~/Reel/general/<recording>/     where new recordings land
-~/Reel/<folder>/<recording>/    the folders you file recordings in
-~/Reel/inbox/                   recorder files waiting to be sorted
-~/Reel/archive/                 archived recordings and inbox files; recordings as they
-                                were before a cut, split or rebuild
+~/Reel Recordings/general/<recording>/    where new recordings land
+~/Reel Recordings/<folder>/<recording>/   the folders you file recordings in
+~/Reel Recordings/inbox/                  recorder files waiting to be sorted
+~/Reel Recordings/archive/                archived recordings and inbox files; recordings
+                                          as they were before a cut, split or rebuild
 ```
 
 Inside a recording's folder:
@@ -543,7 +543,7 @@ Next to `transcribe.py`, ignored by git: `.env` (your API keys and any
 
 Everything is plain JSON on disk. `REEL_DATA` points the data elsewhere (a
 folder that must exist: Reel won't start on a missing one, which may be a disk
-that isn't plugged in), `REEL_INBOX` moves just the inbox, `REEL_ARCHIVE` the
+that isn't plugged in; nor on one that overlaps the code's folder), `REEL_INBOX` moves just the inbox, `REEL_ARCHIVE` the
 archive, `REEL_GROUP` changes the folder new recordings land in.
 
 Deleting a recording (or an inbox file) archives it: recordings move to

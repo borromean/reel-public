@@ -7,6 +7,8 @@
 set -e
 cd "$(dirname "$0")/.."
 command -v python3 >/dev/null || { echo "python3 is missing — on a Mac, run: xcode-select --install" >&2; exit 1; }
+python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' \
+  || { echo "Reel needs Python 3.9 or newer; python3 is $(python3 --version 2>&1)" >&2; exit 1; }
 echo "== numpy (multi-mic recordings, cutting and splitting)"
 if python3 -c 'import numpy' 2>/dev/null; then
   echo "   already there"
@@ -19,7 +21,7 @@ fi
 python3 -c 'import numpy' 2>/dev/null && echo "   numpy ok ($(python3 --version))" || echo "   numpy still missing for $(command -v python3)"
 echo "== DeepFilterNet (denoised listening copies)"
 if [ -x bin/deep-filter ]; then echo "   already there"
-else bin/fetch-deepfilter.sh || echo "   (not fetched — the denoised copies are optional)"
+else sh bin/fetch-deepfilter.sh || echo "   (not fetched — the denoised copies are optional)"
 fi
 echo
 echo "Done. Start Reel with:  python3 transcribe.py"

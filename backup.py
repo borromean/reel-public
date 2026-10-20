@@ -41,20 +41,31 @@ class BackupError(Exception):
     pass
 
 
+# Drive for desktop names an account's folders in the Mac's language: "My
+# Drive" is the one to back up into; the roots of shared drives and other
+# computers take no folders of their own.
+MY_DRIVE = {"My Drive", "Meine Ablage", "Mon Drive", "Mi unidad", "Il mio Drive", "Meu Drive", "Mijn Drive",
+            "Min enhet", "Mit drev", "Min disk", "Oma Drive", "Mój dysk", "Мой диск", "マイドライブ", "내 드라이브",
+            "我的云端硬盘", "我的雲端硬碟"}
+NOT_MY_DRIVE = {"Shared drives", "Other computers", "Geteilte Ablagen", "Andere Computer", "Drive partagés",
+                "Autres ordinateurs", "Unidades compartidas", "Otros ordenadores", "Drive condivisi", "Altri computer",
+                "Drives compartilhados", "Outros computadores", "Gedeelde drives", "Andere computers", "共有ドライブ",
+                "その他のパソコン", "공유 드라이브", "共享云端硬盘", "共用雲端硬碟"}
+
+
 def drive_folders():
     """The "My Drive" folders of Google Drive for desktop on this Mac, one per
     signed-in account (and where its predecessors, Drive File Stream and
-    Backup and Sync, kept theirs)."""
+    Backup and Sync, kept theirs). An account whose My Drive goes by a name not
+    known here offers all its folders, the known non-starters last."""
     home = Path.home()
     found = []
     try:
         accounts = sorted((home / "Library" / "CloudStorage").glob("GoogleDrive-*"))
         for acct in accounts:
-            mine = acct / "My Drive"
-            if mine.is_dir():
-                found.append(mine)
-            else:  # the folder is named in the Mac's language
-                found += [d for d in sorted(acct.iterdir()) if d.is_dir() and not d.name.startswith(".")]
+            subs = [d for d in sorted(acct.iterdir()) if d.is_dir() and not d.name.startswith(".")]
+            mine = [d for d in subs if d.name in MY_DRIVE]
+            found += mine or sorted(subs, key=lambda d: d.name in NOT_MY_DRIVE)
     except OSError:
         pass
     for old in [*sorted(Path("/Volumes").glob("GoogleDrive*/My Drive")), home / "Google Drive"]:
@@ -116,14 +127,23 @@ def run(data, dest, recordings, tracks=False):
                 stamp = [st.st_size, st.st_mtime_ns]
                 if done.get(str(dst)) == stamp and dst.exists():
                     continue
-                dst.parent.mkdir(parents=True, exist_ok=True)
                 tmp = dst.with_name(f".{dst.name}.reel-tmp")  # Drive never sees half a file under the real name
                 try:
+                    # Folder by folder below dest, never dest itself: should Drive quit
+                    # mid-round, its folder must not come back as a plain local one.
+                    folder = dest
+                    for part in dst.parent.relative_to(dest).parts:
+                        folder = folder / part
+                        folder.mkdir(exist_ok=True)
                     shutil.copy2(src, tmp)
                     os.replace(tmp, dst)
-                except FileNotFoundError:
+                except FileNotFoundError as err:
                     tmp.unlink(missing_ok=True)
-                    continue  # the source went away mid-copy
+                    if not dest.is_dir():
+                        raise BackupError(f"The backup folder {dest} went away (did Google Drive for desktop quit?)")
+                    if src.exists():
+                        raise BackupError(f"Couldn't copy {src.name} to {dst.parent}: {err}")
+                    continue  # the source went away mid-copy (archived, moved)
                 except OSError as err:
                     tmp.unlink(missing_ok=True)
                     raise BackupError(f"Couldn't copy {src.name} to {dst.parent}: {err}")

@@ -877,7 +877,8 @@ async function retryTranscription(id, btn) {
 async function uploadFiles(files) {
   for (const f of files) {
     try {
-      await api("/api/upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f });
+      // the file's own date dates the recording when its name doesn't
+      await api(`/api/upload?name=${encodeURIComponent(f.name)}&mtime=${f.lastModified / 1000}`, { method: "POST", body: f });
     } catch (err) {
       alert(`Couldn't add ${f.name}: ${err.message}`);
     }
@@ -1683,6 +1684,11 @@ const KEY_INFO = {
 async function editSettings() {
   let cur = await api("/api/settings");
   const home = p => String(p).replace(/^\/Users\/[^/]+/, "~");
+  // Google Drive for desktop's folders by account: ~/Library/CloudStorage/GoogleDrive-<account>/My Drive
+  const folderLabel = p => {
+    const m = /\/CloudStorage\/GoogleDrive-([^/]+)\/(.+)$/.exec(p);
+    return m ? `Google Drive · ${m[1]} · ${m[2]}` : home(p);
+  };
   const dlg = document.createElement("dialog");
   dlg.className = "prompt-dlg";
   document.body.appendChild(dlg);
@@ -1729,7 +1735,7 @@ async function editSettings() {
           then open the settings again. Or back up to any other folder (an external disk, say).</div>`}
         <div class="backup-where"><b>FOLDER</b>
           <select id="b-dir" aria-label="Backup folder">
-            ${folders.map(p => `<option value="${esc(p)}" ${p === cur.backup_dir ? "selected" : ""}>${esc(home(p))}</option>`).join("")}
+            ${folders.map(p => `<option value="${esc(p)}" ${p === cur.backup_dir ? "selected" : ""} title="${esc(p)}">${esc(folderLabel(p))}</option>`).join("")}
             ${folders.length ? "" : '<option value="" selected>—</option>'}
             <option value="__other__">other folder…</option></select>
           <button type="button" class="small" id="b-now" ${cur.backup ? "" : "disabled"}>BACK UP NOW</button>

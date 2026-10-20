@@ -15,7 +15,7 @@ Ground rules:
 - Some steps are interactive (installing the command line tools, signing in
   to Google Drive). Ask the person to do those themselves; for a command, they
   can type `! <command>` in the prompt.
-- Reel stores recordings in `~/Reel` and runs only on this Mac, at
+- Reel stores recordings in `~/Reel Recordings` and runs only on this Mac, at
   `http://127.0.0.1:8765` (the next free port if that one is taken; the
   startup line says which), bound to localhost, so nobody else on the network
   can reach it.
@@ -82,7 +82,7 @@ Poll `curl -s http://127.0.0.1:<port>/api/library` until the test item's
 `status` is `ready` (usually under a minute). `error` explains a failure: a
 missing or refused key, or ElevenLabs refusing (plan, quota). Then remove it:
 `curl -s -X DELETE http://127.0.0.1:<port>/api/item/<id>` (it moves to
-`~/Reel/archive`).
+`~/Reel Recordings/archive`).
 
 ## 5. Optional: the Google Drive backup
 
@@ -118,7 +118,7 @@ tell them how to use it:
   copies their new recordings in, leaving them on the mic; ⚙ SETTINGS → CLEAR
   THE MIC AFTER COPYING has it delete them there once it has verified
   identical copies, so the mics don't fill up. Or drag *all* the files straight off the cards into
-  `~/Reel/inbox/`, names unchanged. Reel matches files from the same
+  `~/Reel Recordings/inbox/`, names unchanged. Reel matches files from the same
   conversation, aligns and mixes them, and transcribes the mix.
 - **Reading.** Click any word to jump there; click a speaker's name to rename
   them; ✂ CLEAN UP FILLER (with an Anthropic key) hides ums and fixes
@@ -126,5 +126,5 @@ tell them how to use it:
   what about, which helps the clean-up; ✎ TERMS takes names and jargon.
 - **Their files and the cloud.** Audio goes to ElevenLabs and transcript text
   to Anthropic for processing; each transcript is deleted from ElevenLabs as
-  soon as it's saved locally. Everything else stays in `~/Reel` (and in their
+  soon as it's saved locally. Everything else stays in `~/Reel Recordings` (and in their
   Drive, if they turned the backup on).

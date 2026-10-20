@@ -1,4 +1,4 @@
-# Recordings live in ~/Reel (or REEL_DATA), outside the code. These keep audio
+# Recordings live in ~/Reel Recordings (or REEL_DATA), outside the code. These keep audio
 # out of the repository should any end up next to it.
 /recordings/
 *.wav
