@@ -79,22 +79,28 @@ transmitter mounts as a "Mic Tx" volume, and Reel copies its new recordings
 into the inbox (`~/Reel/inbox/`) by itself — the raw `_orig` of each take, its
 `_edit` twin into `inbox/skipped/` (Reel doesn't use it; empty that folder
 whenever), only files it hasn't seen (not in the inbox, the library, the
-archive, or copied before: `inbox/.imported.json`).
-Then Reel **clears the mic**: a file is deleted from it only once Reel holds a
-byte-identical copy of that very file (SHA-256 — of what was read off the mic
-against the copy re-read from disk after flushing it to the drive, or, for a
-file copied some other way, of both files), and only if every copy that time
-succeeded. A file with no identical copy in Reel stays on the mic and is
-reported. Nothing is deleted while a copy by hand
-into the inbox is still running. The INBOX panel shows COPYING / CHECKING /
-CLEARING, then "… CLEARED FROM THE MIC · SAFE TO UNPLUG". Several mics
-plugged in at once copy side by side (a DJI transmitter reads at ~13 MB/s,
-its own limit, so two take as long as one). The inbox sorts nothing while
-recordings are being copied — the `_edit` twins don't hold it up — and then
-waits the usual 2 minutes for a partner mic. An SD card in a reader works the
-same. **`REEL_CLEAR_MIC=0` copies but leaves the mic alone**, and
-`REEL_AUTO_IMPORT=0` turns it all off (in `.env` next to `transcribe.py`, or
-the environment).
+archive, or copied before: `inbox/.imported.json`). The recordings stay on the
+mic; the INBOX panel shows COPYING, then "… COPIED · LEFT ON THE MIC · SAFE TO
+UNPLUG".
+
+To have Reel **clear the mic** as well, tick **CLEAR THE MIC AFTER COPYING** in
+⚙ SETTINGS (it is off until you do). Then a file is deleted from the recorder
+only once Reel holds a byte-identical copy of that very file (SHA-256 — of what
+was read off the mic against the copy re-read from disk after flushing it to
+the drive, or, for a file copied some other way, of both files), and only if
+every copy that time succeeded. A file with no identical copy in Reel stays on
+the mic and is reported. Nothing is deleted while a copy by hand into the inbox
+is still running. The INBOX panel shows COPYING / CHECKING / CLEARING, then
+"… CLEARED FROM THE MIC · SAFE TO UNPLUG". The setting takes effect from the
+next time a recorder is plugged in, and also clears recordings left on it
+earlier that Reel holds copies of.
+
+Several mics plugged in at once copy side by side (a DJI transmitter reads at
+~13 MB/s, its own limit, so two take as long as one). The inbox sorts nothing
+while recordings are being copied — the `_edit` twins don't hold it up — and
+then waits the usual 2 minutes for a partner mic. An SD card in a reader works
+the same. `REEL_AUTO_IMPORT=0` (in `.env` next to `transcribe.py`, or the
+environment) turns the copying off altogether.
 Or **drop the recorders' files into the inbox** yourself — Finder
 drag-and-drop is fine, straight from the SD cards.
 The library page shows an INBOX panel while files are being sorted. What
@@ -455,8 +461,10 @@ data filters on them. Merging recordings (a late match, combining, or
 `--regroup`) keeps the flag if any of them had it and joins their notes.
 
 ⚙ SETTINGS on the main page holds the API keys, the
-[Google Drive backup](#backing-up-to-google-drive), and NOT FOR TRAINING BY
-DEFAULT for new recordings — recorded, added or from the inbox. A box ticked
+[Google Drive backup](#backing-up-to-google-drive), CLEAR THE MIC AFTER
+COPYING for [plugged-in recorders](#several-recorders-one-conversation-multi-mic),
+and NOT FOR TRAINING BY DEFAULT for new recordings — recorded, added or from
+the inbox. A box ticked
 by that setting rather than by hand gets `<default>` as its ASK FIRST until
 someone writes the real reason. Recordings rebuilt by a split, a cut or
 `--regroup` keep what they had. The settings are `settings.json` next to
@@ -561,3 +569,7 @@ One Reel runs per data folder: starting it again opens the one that's running
 (and hands it any audio files you named). `--group`, `--ingest`, `--regroup`,
 `--split` and `--remix` run as Reel starts, so stop the running one first
 (Ctrl-C in its Terminal window).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -115,9 +115,9 @@ tell them how to use it:
 - **Several mics, one conversation** (DJI Mic style, one transmitter per
   person: 32-bit float internal recording, clocks synced in the DJI app, loop
   recording off). Plug the transmitters in by USB while Reel runs and it
-  copies their new recordings in, then deletes them from the mic once it has
-  verified identical copies (`REEL_CLEAR_MIC=0` in `~/reel/.env` keeps them
-  on the mic). Or drag *all* the files straight off the cards into
+  copies their new recordings in, leaving them on the mic; ⚙ SETTINGS → CLEAR
+  THE MIC AFTER COPYING has it delete them there once it has verified
+  identical copies, so the mics don't fill up. Or drag *all* the files straight off the cards into
   `~/Reel/inbox/`, names unchanged. Reel matches files from the same
   conversation, aligns and mixes them, and transcribes the mix.
 - **Reading.** Click any word to jump there; click a speaker's name to rename

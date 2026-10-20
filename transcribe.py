@@ -200,18 +200,17 @@ INBOX_SKIPPED = INBOX / "skipped"
 # inbox, the library, the archive or inbox/skipped/, and not copied before (the log in
 # IMPORT_LOG, so recordings left on a mic are never imported twice). Only the
 # raw _orig of a take goes to the inbox; its _edit twin, which Reel doesn't
-# use, is kept in inbox/skipped/ (empty it whenever). Then the mic is cleared
-# (CLEAR_MIC): a file is deleted from it only once Reel holds a byte-identical
-# copy of that very file (SHA-256 — for a file just copied, of what was read
-# off the mic against the copy re-read from disk; otherwise of both files),
-# and only if every copy this time succeeded. Nothing is deleted
+# use, is kept in inbox/skipped/ (empty it whenever). The mic is left as it
+# is, unless CLEAR THE MIC AFTER COPYING is on in ⚙ SETTINGS (clear_mic):
+# then a file is deleted from it only once Reel holds a byte-identical copy of
+# that very file (SHA-256 — for a file just copied, of what was read off the
+# mic against the copy re-read from disk; otherwise of both files), and only
+# if every copy this time succeeded. Nothing is deleted
 # while a copy by hand into the inbox is still running (Finder may be reading
 # the mic). While a mic is being copied or checked the inbox sorts nothing,
 # and afterwards its files get the full INBOX_SINGLE_DELAY_S to find a
-# partner — plug the other mics in too. REEL_AUTO_IMPORT=0 turns all of this
-# off; REEL_CLEAR_MIC=0 copies but leaves the mic as it is.
+# partner — plug the other mics in too. REEL_AUTO_IMPORT=0 turns all of this off.
 AUTO_IMPORT = os.environ.get("REEL_AUTO_IMPORT", "1") != "0"
-CLEAR_MIC = os.environ.get("REEL_CLEAR_MIC", "1") != "0"
 VOLUMES = Path("/Volumes")
 VOLUME_POLL_S = 5
 RECORDER_FILE_RE = re.compile(r"^TX\d*_MIC\d+_\d{8}_\d{6}.*\.wav$", re.I)
@@ -794,6 +793,21 @@ def relabel_outdated():
                 print(f"  relabelled speakers of {item_id} (labelling v{mt.LABEL_VERSION})")
         except Exception as err:
             print(f"  relabel {item_id}: {err}")
+
+
+def key_added(name):
+    """A key was just saved in ⚙ SETTINGS: recordings that failed for want of
+    an ElevenLabs key go again, and unnamed ones get a title from Claude."""
+    if name == "elevenlabs":
+        with LOCK:
+            todo = [i for i in ITEMS.values() if i["status"] == "error" and i.get("error") == NO_KEY_MESSAGE]
+            for it in todo:
+                it["transcript_id"] = None
+                set_status(it, "queued")
+        for it in todo:
+            threading.Thread(target=transcribe_worker, args=(it["id"],), daemon=True).start()
+    else:
+        threading.Thread(target=name_unnamed, daemon=True).start()
 
 
 def transcribe_worker(item_id):
@@ -1452,10 +1466,12 @@ def tidy_notes(item):
         item["training_ask"] = ""
 
 
-# This Mac's ⚙ SETTINGS: how brand-new recordings start, and the Google Drive
-# backup (backup.py). Next to the code but gitignored, like .env.
+# This Mac's ⚙ SETTINGS: how brand-new recordings start, whether a plugged-in
+# recorder is cleared once its recordings are copied (import_volume), and the
+# Google Drive backup (backup.py). Next to the code but gitignored, like .env.
 SETTINGS_FILE = ROOT / "settings.json"
-SETTINGS_DEFAULTS = {"no_training": False, "backup": False, "backup_dir": "", "backup_tracks": False}
+SETTINGS_DEFAULTS = {"no_training": False, "clear_mic": False,
+                     "backup": False, "backup_dir": "", "backup_tracks": False}
 DEFAULT_NOTE = "<default>"  # a ticked-by-the-settings box's note, until someone writes the real one
 
 
@@ -3156,8 +3172,10 @@ def _copy_in(src, dst_dir, log, media):
 
 def import_volume(root, media):
     """Copy the takes on a plugged-in recorder that Reel hasn't seen into the
-    inbox, then clear the mic of every file Reel verifiably holds (CLEAR_MIC).
-    Returns True when the volume is done (False: try again in a moment)."""
+    inbox, then — with clear_mic on in ⚙ SETTINGS — clear the mic of every
+    file Reel verifiably holds. Returns True when the volume is done (False:
+    try again in a moment)."""
+    clear = load_settings()["clear_mic"]
     log = _load_import_log()
     files = _volume_recorder_files(root)
     takes = _recorder_takes(root, files)
@@ -3167,7 +3185,7 @@ def import_volume(root, media):
         seen = _seen_recorder_names()
         new = [f for f in new if f.name not in seen and safe_name(f.name) not in seen]
     new_takes = [f for f in takes if f in new]
-    if not new and not CLEAR_MIC:
+    if not new and not clear:
         return True
     key = f"{media} ({root.name})"
 
@@ -3188,8 +3206,10 @@ def import_volume(root, media):
             if is_take:
                 with INBOX_LOCK:
                     _COPIED_SINCE_IDLE[0] = True
-        if not CLEAR_MIC:
-            print(f"  import: {media} done — you can unplug it")
+        if not clear:
+            with INBOX_LOCK:
+                CLEARED[key] = {"copied": len(new_takes), "cleared": None, "kept": 0}
+            print(f"  import: {media} done — {len(new_takes)} copied, left on it; you can unplug it")
             return True
         with INBOX_LOCK:
             copying = [n for n, st in INBOX_STATE.items() if st["status"] == "copying" and n not in log]
@@ -3410,8 +3430,8 @@ class Handler(BaseHTTPRequestHandler):
                 body = json.loads(self.read_body() or b"{}")
                 changes = {k: body[k] for k in SETTINGS_DEFAULTS if k in body}
                 if not changes or any(type(v) is not type(SETTINGS_DEFAULTS[k]) for k, v in changes.items()):
-                    return self.fail(400, 'Expected any of {"no_training": true, "backup": true, '
-                                          '"backup_dir": "…", "backup_tracks": false}')
+                    return self.fail(400, 'Expected any of {"no_training": true, "clear_mic": false, '
+                                          '"backup": true, "backup_dir": "…", "backup_tracks": false}')
                 try:
                     change_settings(changes)
                 except ValueError as err:
@@ -3425,6 +3445,8 @@ class Handler(BaseHTTPRequestHandler):
                     check = save_key(body["service"], body["key"])
                 except ValueError as err:
                     return self.fail(409, str(err))
+                if check:
+                    key_added(body["service"])
                 return self.send_json({**settings_state(), "check": check})
             if parsed.path == "/api/backup":
                 if not load_settings()["backup"]:

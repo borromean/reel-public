@@ -591,7 +591,9 @@ function inboxPanel(inbox) {
     </div>`;
   }).join("") + cleared.map(m => `<div class="inbox-row">
       <span class="name">${esc(m.volume)}</span>
-      <span class="state" title="Every recording deleted from the recorder was first compared with Reel's copy, byte for byte.${m.kept ? ` ${m.kept} recording${m.kept === 1 ? " has" : "s have"} no identical copy in Reel and stayed on it.` : ""}">${m.copied} COPIED · ${m.cleared} CLEARED FROM THE MIC${m.kept ? ` · ${m.kept} KEPT ON IT` : ""} · SAFE TO UNPLUG</span>
+      ${m.cleared == null
+        ? `<span class="state" title="The recordings stay on the recorder too. ⚙ SETTINGS → CLEAR THE MIC AFTER COPYING has Reel delete them there once it holds identical copies.">${m.copied} COPIED · LEFT ON THE MIC · SAFE TO UNPLUG</span>`
+        : `<span class="state" title="Every recording deleted from the recorder was first compared with Reel's copy, byte for byte.${m.kept ? ` ${m.kept} recording${m.kept === 1 ? " has" : "s have"} no identical copy in Reel and stayed on it.` : ""}">${m.copied} COPIED · ${m.cleared} CLEARED FROM THE MIC${m.kept ? ` · ${m.kept} KEPT ON IT` : ""} · SAFE TO UNPLUG</span>`}
       <span class="state"></span><span></span>
     </div>`).join("");
   const rows = imports + files.map(f => `<div class="inbox-row">
@@ -629,6 +631,10 @@ function renderLibrary(items, inbox) {
       <span>Reel needs an ElevenLabs API key to transcribe (and, optionally, an Anthropic one for titles and the
         clean-up). Paste yours into the settings — it takes a minute.</span>
       <button id="add-keys">⚙ ADD YOUR API KEYS</button></div>` : ""}
+    ${inbox && inbox.available === false ? `<div class="setup-note">
+      <span>Multi-mic recordings, cutting and splitting are off: numpy isn't installed for this Python
+        (${esc(inbox.error || "")}). Run <code>bin/setup.sh</code> in Reel's folder, then restart Reel.
+        Single recordings work as usual; files in the inbox wait until then.</span></div>` : ""}
     <div class="shelf-head">
       <span>${items.length} RECORDING${items.length === 1 ? "" : "S"}</span>
       <div class="shelf-actions">${combinePick ? `
@@ -636,7 +642,7 @@ function renderLibrary(items, inbox) {
         <button class="rec-btn theme-btn" id="pick-cancel">CANCEL</button>
         <button class="add-btn" id="pick-go" ${n < 2 ? "disabled" : ""}>⧉ COMBINE${n ? " " + n : ""}</button>` : `
         <button class="rec-btn theme-btn" id="theme" title="Switch between the light and dark look">${document.documentElement.dataset.theme === "light" ? "☾ DARK" : "☀ LIGHT"}</button>
-        <button class="rec-btn theme-btn" id="settings" title="API keys, the Google Drive backup, and how new recordings start out">⚙ SETTINGS</button>
+        <button class="rec-btn theme-btn" id="settings" title="API keys, the Google Drive backup, plugged-in recorders, and how new recordings start out">⚙ SETTINGS</button>
         <button class="rec-btn theme-btn" id="combine" title="Make one recording of several: mics of the same conversation, or recordings made one after another">⧉ COMBINE…</button>
         <button class="rec-btn" id="rec">● RECORD</button>
         <button class="add-btn" id="add">+ ADD AUDIO</button>`}
@@ -1732,6 +1738,12 @@ async function editSettings() {
         <label><input type="checkbox" data-setting="backup_tracks" ${cur.backup_tracks ? "checked" : ""}> INCLUDE EACH MIC'S OWN FILES
           <span>For multi-mic recordings, the recorders' original files too, so a restored recording can still be
           re-mixed, combined or given another mic. Large: often ten times everything else.</span></label>
+        <h3>RECORDERS PLUGGED IN BY USB</h3>
+        <label><input type="checkbox" data-setting="clear_mic" ${cur.clear_mic ? "checked" : ""}> CLEAR THE MIC AFTER COPYING
+          <span>Reel copies a plugged-in recorder's new recordings (DJI Mic transmitters, SD cards) into the inbox.
+          With this on, it then deletes them from the recorder — each one only once Reel holds a byte-identical copy
+          (checked by SHA-256) — so the mic never fills up. Off, they stay on the recorder. From the next time one is
+          plugged in.</span></label>
         <h3>NEW RECORDINGS</h3>
         <label><input type="checkbox" data-setting="no_training" ${cur.no_training ? "checked" : ""}> NOT FOR TRAINING BY DEFAULT
           <span>Recorded here, added, or from the inbox. ASK FIRST reads <code>${esc(DEFAULT_NOTE)}</code> until someone
@@ -1771,7 +1783,15 @@ async function editSettings() {
       };
     });
     dlg.querySelectorAll("[data-setting]").forEach(box => {
-      box.onchange = () => saveSetting({ [box.dataset.setting]: box.checked });
+      box.onchange = () => {
+        if (box.dataset.setting === "clear_mic" && box.checked && !confirm("Delete recordings from a plugged-in "
+          + "recorder once Reel has copied them?\n\nEach file is deleted only after Reel has checked that its own copy "
+          + "is identical, byte for byte. Until then, and for anything it can't verify, the recorder keeps its files.")) {
+          box.checked = false;
+          return;
+        }
+        saveSetting({ [box.dataset.setting]: box.checked });
+      };
     });
     const dir = dlg.querySelector("#b-dir");
     dir.onchange = () => {
