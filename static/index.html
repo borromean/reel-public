@@ -1,0 +1,2203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='5' fill='%23E5372B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<script>document.documentElement.dataset.theme = localStorage.getItem("reel-theme") || "light";</script>
+<style>
+:root {
+  --deck: #16140F;
+  --deck-raised: #211E16;
+  --deck-line: #37331F;
+  --deck-text: #D9D3C0;
+  --deck-dim: #8C8672;
+  --paper: #FAF9F4;
+  --ink: #211E16;
+  --muted: #877E69;
+  --line: #E8E4D7;
+  --rec: #E5372B;
+  --rec-dim: #B72A20;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --serif: "Literata", Georgia, "Times New Roman", serif;
+  --spk-0: #46618A;
+  --spk-1: #5A7350;
+  --spk-2: #8A5480;
+  --spk-3: #A1742D;
+  --amber: #F6B73C; --amber-line: #57431A; --error-line: #5A241F; --tc-strong: #fff;
+}
+html[data-theme="light"] {
+  --deck: #F4F2EB; --deck-raised: #EAE7DB; --deck-line: #D9D4C4;
+  --deck-text: #211E16; --deck-dim: #746D5B;
+  --amber: #8F6410; --amber-line: #E3D2A6; --error-line: #F0B8B2; --tc-strong: #111;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.65;
+}
+body.dark { background: var(--deck); color: var(--deck-text); }
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--rec); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ------------------------------------------------ library (the tape shelf) */
+.shelf { max-width: 68rem; margin: 0 auto; padding: 2.25rem 1.25rem 5rem; }
+.brand {
+  display: flex; align-items: baseline; gap: .75rem;
+  font-family: var(--mono); letter-spacing: .18em; font-weight: 600;
+  font-size: 1.05rem; color: var(--deck-text);
+}
+.brand .dot { color: var(--rec); letter-spacing: 0; }
+.stale { font-family: var(--mono); font-size: .7rem; letter-spacing: .08em; color: var(--rec); border: 1px solid var(--error-line); border-radius: 3px; padding: .5rem .8rem; margin: .8rem 0 0; }
+.tagline {
+  font-family: var(--mono); font-size: .8rem; color: var(--deck-dim);
+  margin: .6rem 0 2.75rem; letter-spacing: .02em;
+}
+.shelf-head {
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--deck-line); padding-bottom: .6rem; margin-bottom: .25rem;
+  font-family: var(--mono); font-size: .7rem; letter-spacing: .14em; color: var(--deck-dim);
+}
+.add-btn {
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .1em;
+  background: var(--rec); color: #fff; border: none; border-radius: 3px;
+  padding: .55rem .9rem;
+}
+.add-btn:hover { background: var(--rec-dim); }
+.add-btn:disabled { opacity: .4; cursor: default; }
+.pick-note { font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; color: var(--deck-dim); align-self: center; }
+.row-head { display: flex; align-items: center; gap: .7rem; min-width: 0; }
+.row-head .pick { margin: 0; width: .95rem; height: .95rem; flex: none; accent-color: var(--rec); cursor: pointer; }
+.row.picked { background: var(--deck-raised); box-shadow: inset 3px 0 var(--rec); }
+.shelf-actions { display: flex; gap: .6rem; }
+.rec-btn {
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .1em;
+  background: none; color: var(--rec); border: 1px solid var(--rec); border-radius: 3px;
+  padding: .55rem .9rem;
+}
+.rec-btn:hover { background: var(--rec); color: #fff; }
+.theme-btn { color: var(--deck-dim); border-color: var(--deck-line); }
+.theme-btn:hover { background: var(--deck-raised); color: var(--deck-text); }
+.recbar {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: .9rem; z-index: 30;
+  background: var(--deck); color: var(--deck-text); border: 1px solid var(--deck-line);
+  border-radius: 999px; padding: .6rem 1.1rem;
+  font-family: var(--mono); font-size: .75rem; white-space: nowrap;
+}
+.recbar .dot { color: var(--rec); animation: pulse 1.4s ease-in-out infinite; }
+.recbar.paused .dot { animation: none; color: var(--deck-dim); }
+.recbar time { font-variant-numeric: tabular-nums; min-width: 3.2em; }
+.recbar .meter { width: 70px; height: 4px; background: var(--deck-line); border-radius: 2px; overflow: hidden; }
+.recbar .meter > div { height: 100%; width: 0; background: var(--rec); }
+.recbar button {
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .08em;
+  background: var(--deck-raised); color: var(--deck-text);
+  border: 1px solid var(--deck-line); border-radius: 999px; padding: .35rem .8rem;
+}
+.recbar button:hover { border-color: var(--deck-dim); }
+.recbar button.stop { background: var(--rec); border-color: var(--rec); color: #fff; }
+.row {
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 1.25rem;
+  align-items: center; color: var(--deck-text); position: relative;
+  padding: .95rem .35rem; border-bottom: 1px solid var(--deck-line);
+}
+.row:hover { background: var(--deck-raised); }
+.row-title {
+  font-family: var(--mono); font-size: .86rem; font-weight: 500; line-height: 1.35;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  color: inherit; text-decoration: none;
+}
+/* The title's link covers the whole row, so a click anywhere opens the recording;
+   the controls (and anything with a tooltip) sit above it, outside the link. */
+.row-title::after { content: ""; position: absolute; inset: 0; }
+.row [title]:not(.row-title), .row select, .row input, .row button { position: relative; z-index: 1; }
+.row-meta { font-family: var(--mono); font-size: .72rem; color: var(--deck-dim); white-space: nowrap; }
+.chip {
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .12em;
+  padding: .25rem .5rem; border-radius: 3px; white-space: nowrap;
+}
+.chip.ready { color: var(--deck-dim); border: 1px solid var(--deck-line); }
+.chip.working { color: var(--amber); border: 1px solid var(--amber-line); }
+.chip.error { color: var(--rec); border: 1px solid var(--error-line); }
+.chips { display: inline-flex; gap: .45rem; align-items: center; white-space: nowrap; }
+.chip.folder { color: var(--deck-dim); border: 1px solid var(--deck-line); letter-spacing: .06em; text-transform: none; }
+.row-main { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+.row-flags { display: flex; flex-wrap: wrap; gap: .3rem 1.2rem; align-items: center; font-family: var(--mono); font-size: .62rem; letter-spacing: .08em; color: var(--deck-dim); }
+.row-flags label { display: inline-flex; align-items: center; gap: .45em; cursor: pointer; }
+.row-flags input[type=checkbox] { margin: 0; width: .75rem; height: .75rem; accent-color: var(--rec); cursor: pointer; }
+.row-flags input:disabled { cursor: default; opacity: .5; }
+.row-flags .flag.on { color: var(--rec); }
+.row-flags input[type=text] { font: inherit; letter-spacing: .04em; color: var(--deck-text); background: none; border: 0; border-bottom: 1px solid var(--deck-line); padding: .1rem 0; width: 14em; outline: none; }
+.row-flags input[type=text]:focus { border-bottom-color: var(--deck-dim); }
+.row-flags input.dflt, .place input.dflt { color: var(--deck-dim); font-style: italic; }
+.settings { display: flex; flex-direction: column; gap: .9rem; padding: .2rem 1.4rem .6rem; }
+.settings label { display: grid; grid-template-columns: auto 1fr; gap: .2rem .6rem; align-items: baseline; font-size: .72rem; letter-spacing: .1em; color: var(--ink); cursor: pointer; }
+.settings input { margin: 0; accent-color: var(--rec); }
+.settings span { grid-column: 2; font-size: .66rem; letter-spacing: .01em; color: var(--muted); line-height: 1.6; }
+.settings h3 { margin: 0; padding-top: .9rem; border-top: 1px solid var(--line); font-size: .64rem; letter-spacing: .16em; font-weight: 600; color: var(--muted); }
+.settings h3:first-child { border-top: 0; padding-top: 0; }
+.key-row, .backup-where { display: grid; grid-template-columns: 7rem 1fr auto; gap: .35rem .6rem; align-items: center; font-size: .72rem; letter-spacing: .1em; }
+.key-row input, .backup-where select { font: inherit; font-size: .7rem; letter-spacing: .02em; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 3px; padding: .35rem .5rem; min-width: 0; }
+.settings .note { grid-column: 2 / -1; font-size: .64rem; letter-spacing: .01em; color: var(--muted); line-height: 1.6; }
+.settings .note a { color: inherit; }
+.settings .note.ok { color: var(--spk-1); }
+.settings .note.bad { color: var(--rec); }
+.settings button.small { background: none; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); font: inherit; font-size: .64rem; letter-spacing: .08em; padding: .35rem .6rem; }
+.settings button.small:hover:not(:disabled) { color: var(--ink); border-color: var(--muted); }
+.settings button.small:disabled { opacity: .4; cursor: default; }
+.setup-note { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin: -1.2rem 0 1.8rem; padding: .7rem .9rem; font-family: var(--mono); font-size: .72rem; letter-spacing: .04em; color: var(--amber); border: 1px solid var(--amber-line); border-radius: 3px; }
+.setup-note span { flex: 1; min-width: 14rem; line-height: 1.6; }
+.setup-note button { font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; background: none; color: var(--amber); border: 1px solid var(--amber-line); border-radius: 3px; padding: .4rem .7rem; }
+.setup-note button:hover { border-color: var(--amber); }
+.place input[type=text] { font: inherit; background: none; border: 1px solid var(--deck-line); border-radius: 3px; padding: .3rem .4rem; color: var(--ink); width: 15em; }
+select.chip.folder { background: none; cursor: pointer; }
+select.chip.folder:hover { border-color: var(--deck-dim); }
+.place { display: inline-flex; gap: .4rem; align-items: center; }
+.place select, .place label { font-family: var(--mono); font-size: .68rem; color: var(--deck-dim); }
+.place select { background: none; border: 1px solid var(--deck-line); border-radius: 3px; padding: .3rem .4rem; color: inherit; }
+.place label.on { color: var(--rec); }
+.chip.working::before {
+  content: "●"; margin-right: .45em; animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse { 50% { opacity: .25; } }
+.del {
+  background: none; border: none; color: var(--deck-dim); font-family: var(--mono);
+  font-size: .8rem; padding: .3rem .45rem; border-radius: 3px;
+}
+.del:hover { color: var(--rec); background: var(--deck-raised); }
+.empty {
+  text-align: center; padding: 4.5rem 1rem; color: var(--deck-dim);
+  font-family: var(--mono); font-size: .8rem; line-height: 2.1;
+  border: 1px dashed var(--deck-line); border-radius: 6px; margin-top: 1.5rem;
+}
+.empty b { color: var(--deck-text); font-weight: 500; }
+.empty code { color: var(--amber); }
+body.dropping .shelf { outline: 2px dashed var(--rec); outline-offset: -8px; }
+.mics {
+  font-size: .58rem; letter-spacing: .12em; color: var(--amber);
+  border: 1px solid var(--amber-line); border-radius: 3px; padding: .15rem .4rem; margin-right: .7rem;
+}
+
+/* ------------------------------------------------------ inbox (recorder files) */
+.inbox {
+  margin: 1.4rem 0 1.8rem; border: 1px dashed var(--deck-line); border-radius: 6px;
+  padding: .9rem 1rem .6rem; font-family: var(--mono);
+}
+.inbox-head {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  font-size: .68rem; letter-spacing: .14em; color: var(--deck-dim); margin-bottom: .5rem;
+}
+.inbox-head b { color: var(--amber); font-weight: 500; }
+.inbox-path { letter-spacing: 0; text-transform: none; font-size: .66rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-actions { display: flex; gap: .5rem; }
+.inbox button, .inbox-actions button {
+  font-family: var(--mono); font-size: .6rem; letter-spacing: .1em;
+  background: none; color: var(--deck-text); border: 1px solid var(--deck-line);
+  border-radius: 3px; padding: .3rem .55rem; white-space: nowrap;
+}
+.inbox button:hover:not(:disabled) { border-color: var(--rec); color: var(--rec); }
+.inbox button:disabled { color: var(--deck-dim); cursor: default; }
+.inbox-row {
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: .8rem; align-items: center;
+  padding: .5rem .2rem; border-top: 1px solid var(--deck-line); font-size: .74rem;
+}
+.inbox-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--deck-text); }
+.inbox-row .state { font-size: .66rem; color: var(--deck-dim); white-space: nowrap; }
+.inbox-row .state.bad { color: var(--rec); white-space: normal; }
+.inbox-row .state.hot { color: var(--amber); }
+.inbox-row .state.hot::before { content: "●"; margin-right: .45em; animation: pulse 1.4s ease-in-out infinite; }
+.inbox-note { font-size: .64rem; color: var(--deck-dim); line-height: 1.8; margin-top: .4rem; }
+.doc-meta .seg button.src-bad { color: var(--rec); }
+.err-note {
+  font-family: var(--mono); font-size: .68rem; color: var(--rec);
+  grid-column: 1 / -1; padding-top: .2rem; white-space: normal;
+  display: flex; align-items: flex-start; gap: .9rem;
+}
+.err-note span { flex: 1; }
+.doc-head .held-note { margin-top: .8rem; }
+.doc-head .held-note .retry { color: var(--ink); border-color: var(--line); }
+.retry {
+  flex: none; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em;
+  background: none; color: var(--deck-text); border: 1px solid var(--deck-line);
+  border-radius: 3px; padding: .25rem .55rem; white-space: nowrap;
+}
+.retry:hover:not(:disabled) { border-color: var(--rec); color: var(--rec); }
+.retry:disabled { color: var(--deck-dim); cursor: default; }
+
+/* ------------------------------------------------------- player deck (bar) */
+.deck {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--deck); color: var(--deck-text);
+  font-family: var(--mono);
+}
+.deck-inner {
+  max-width: 62rem; margin: 0 auto; padding: .7rem 1.5rem;
+  display: flex; align-items: center; gap: 1.1rem;
+}
+.back {
+  color: var(--deck-dim); text-decoration: none; font-size: .72rem; letter-spacing: .1em;
+  white-space: nowrap;
+}
+.back:hover { color: var(--deck-text); }
+.deck-title {
+  flex: 1; font-size: .78rem; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: var(--deck-text);
+}
+.rec-dot { color: var(--deck-line); font-size: .9rem; }
+.rec-dot.on { color: var(--rec); animation: pulse 2s ease-in-out infinite; }
+.play {
+  background: var(--deck-raised); color: var(--deck-text);
+  border: 1px solid var(--deck-line); border-radius: 3px;
+  font-family: var(--mono); font-size: .8rem; width: 4.4rem; padding: .45rem 0;
+}
+.play:hover { border-color: var(--deck-dim); }
+.tc { font-size: .78rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tc b { color: var(--tc-strong); font-weight: 500; }
+.tc span { color: var(--deck-dim); }
+.rate {
+  background: none; border: 1px solid var(--deck-line); color: var(--deck-dim);
+  border-radius: 3px; font-family: var(--mono); font-size: .7rem; padding: .42rem .5rem;
+  width: 4.2rem;
+}
+.rate:hover { color: var(--deck-text); }
+.bar { height: 14px; cursor: pointer; display: flex; align-items: flex-end; }
+.bar-track { height: 3px; width: 100%; background: var(--deck-line); }
+.bar-fill { height: 100%; width: 0; background: var(--rec); }
+
+/* ------------------------------------------------------ transcript (paper) */
+.paper { max-width: 52rem; margin: 0 auto; padding: 2.75rem 1.5rem 7rem; }
+.doc-head { border-bottom: 1px solid var(--line); padding-bottom: 1.4rem; margin-bottom: 2.2rem; }
+.doc-title { font-size: 1.55rem; font-weight: 600; line-height: 1.25; margin: 0 0 .55rem; cursor: text; }
+.doc-title:hover { text-decoration: underline dotted var(--line); text-underline-offset: .2em; }
+.doc-title-input { font: inherit; font-size: 1.55rem; font-weight: 600; line-height: 1.25; width: 100%; margin: 0 0 .55rem;
+  padding: 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; outline: none; }
+.doc-meta {
+  font-family: var(--mono); font-size: .7rem; letter-spacing: .08em;
+  color: var(--muted); display: flex; gap: 1.4rem; flex-wrap: wrap; align-items: center;
+}
+.doc-meta button {
+  background: none; border: 1px solid var(--line); border-radius: 3px;
+  color: var(--muted); font-family: var(--mono); font-size: .66rem;
+  letter-spacing: .08em; padding: .3rem .55rem;
+}
+.doc-meta button:hover { color: var(--ink); border-color: var(--muted); }
+.doc-meta button:disabled { cursor: default; color: var(--muted); border-color: var(--line); }
+.doc-meta .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.doc-meta .seg button { border: none; border-radius: 0; }
+.doc-meta .seg button.on { background: var(--ink); color: var(--paper); }
+.utt { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1.4rem; padding: .55rem 0; }
+.utt.cont { padding-top: 0; }
+.pause { color: var(--muted); letter-spacing: .05em; cursor: default; }
+.side { text-align: right; padding-top: .3rem; }
+.tc-btn {
+  background: none; border: none; padding: 0;
+  font-family: var(--mono); font-size: .72rem; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tc-btn:hover { color: var(--rec); }
+.spk {
+  display: block; margin-left: auto;
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; margin-top: .25rem;
+  background: none; border: none; padding: 0; cursor: pointer; text-transform: uppercase;
+}
+.spk:hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+.spk-0 { color: var(--spk-0); } .spk-1 { color: var(--spk-1); }
+.spk-2 { color: var(--spk-2); } .spk-3 { color: var(--spk-3); }
+.txt { margin: 0; }
+.w { cursor: pointer; border-radius: 2px; padding: 0 1px; }
+.w:hover { background: var(--line); }
+.w.ev { font-style: italic; color: var(--muted); }
+.w.fx { text-decoration: underline dotted var(--spk-0); text-underline-offset: 3px; }
+.w.active { background: var(--rec); color: #fff; }
+.w.low { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+.hint {
+  margin-top: 3.5rem; padding-top: 1.2rem; border-top: 1px solid var(--line);
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; color: var(--muted);
+}
+.follow-btn {
+  position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+  background: var(--deck); color: var(--deck-text); border: 1px solid var(--deck-line);
+  border-radius: 999px; font-family: var(--mono); font-size: .7rem;
+  letter-spacing: .08em; padding: .55rem 1.1rem; z-index: 20;
+}
+.follow-btn::before { content: "●"; color: var(--rec); margin-right: .5em; }
+.wait { text-align: center; padding: 5rem 1rem; font-family: var(--mono); color: var(--muted); }
+.wait .big { font-size: .85rem; letter-spacing: .12em; margin-bottom: .8rem; }
+.wait .big::before { content: "●"; color: var(--rec); margin-right: .6em; animation: pulse 1.4s ease-in-out infinite; }
+.wait .sub { font-size: .7rem; line-height: 2; }
+.wait .sub.bad { color: var(--rec); max-width: 34rem; margin: 0 auto; }
+.wait .retry-big {
+  margin-top: 1.8rem; font-family: var(--mono); font-size: .72rem; letter-spacing: .1em;
+  background: none; color: var(--rec); border: 1px solid var(--rec); border-radius: 3px;
+  padding: .55rem .9rem;
+}
+.wait .retry-big:hover:not(:disabled) { background: var(--rec); color: #fff; }
+.wait .retry-big:disabled { opacity: .5; cursor: default; }
+
+/* -------------------------------------------------------------- cut / split */
+.bar-track { position: relative; }
+.bar-cut { position: absolute; top: 0; bottom: 0; background: var(--deck); z-index: 1; }
+.pause.cut, .cut-mark, .doc-meta .cuts { color: var(--rec); }
+.cut-mark { display: grid; grid-template-columns: 6.5rem 1fr; gap: 1.4rem; margin: .5rem 0;
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; }
+.cut-mark span { grid-column: 2; border-top: 1px dashed var(--error-line); padding-top: .35rem; }
+body.editing .paper { padding-bottom: 16rem; }
+body.editing .follow-btn { bottom: 9rem; }
+body.editing .w.sel { background: #F6D3CE; }
+.edit-bar {
+  position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%); z-index: 25;
+  width: min(52rem, calc(100vw - 2rem)); display: flex; flex-wrap: wrap; gap: .7rem 1rem; align-items: center;
+  background: var(--deck); color: var(--deck-text); border: 1px solid var(--deck-line); border-radius: 6px;
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; padding: .8rem 1rem;
+}
+.edit-bar .what { flex: 1 1 100%; color: var(--deck-dim); line-height: 1.6; }
+.edit-bar .what b { color: var(--deck-text); font-weight: 500; }
+.edit-bar button {
+  background: none; border: 1px solid var(--deck-line); border-radius: 3px; color: var(--deck-text);
+  font: inherit; padding: .4rem .6rem;
+}
+.edit-bar button:hover:not(:disabled) { border-color: var(--rec); color: var(--rec); }
+.edit-bar button:disabled { opacity: .4; cursor: default; }
+.edit-bar .done { margin-left: auto; }
+.edit-bar[hidden] { display: none; }
+
+/* --------------------------------------------------- clean-up prompt editor */
+.prompt-dlg {
+  border: 1px solid var(--line); border-radius: 6px; padding: 0;
+  width: min(48rem, calc(100vw - 2rem)); background: var(--paper); color: var(--ink);
+  font-family: var(--mono);
+}
+.prompt-dlg::backdrop { background: rgba(22, 20, 15, .6); }
+.prompt-dlg form { display: flex; flex-direction: column; margin: 0; }
+.prompt-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+  padding: 1.1rem 1.4rem .5rem; font-size: .7rem; letter-spacing: .14em; color: var(--muted);
+}
+.prompt-head b { color: var(--ink); font-weight: 600; }
+.prompt-status { font-size: .62rem; letter-spacing: .12em; }
+.prompt-status.custom { color: var(--spk-3); }
+.prompt-status .unsaved { color: var(--rec); }
+.prompt-note {
+  padding: 0 1.4rem .9rem; font-size: .68rem; line-height: 1.75;
+  color: var(--muted); letter-spacing: .01em;
+}
+.prompt-note code { color: var(--ink); font-size: .95em; }
+.prompt-note b { color: var(--ink); font-weight: 500; }
+.prompt-dlg textarea {
+  margin: 0 1.4rem; height: min(58vh, 36rem); min-height: 12rem; resize: vertical;
+  font-family: var(--mono); font-size: .78rem; line-height: 1.6; color: var(--ink);
+  background: #fff; border: 1px solid var(--line); border-radius: 3px;
+  padding: .8rem .95rem; tab-size: 2;
+}
+.prompt-dlg textarea:focus { outline: none; border-color: var(--muted); }
+.prompt-foot { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; padding: .9rem 1.4rem 1.1rem; }
+.prompt-foot .spacer { flex: 1; }
+.prompt-foot button {
+  background: none; border: 1px solid var(--line); border-radius: 3px;
+  color: var(--muted); font-family: var(--mono); font-size: .66rem;
+  letter-spacing: .08em; padding: .45rem .7rem;
+}
+.prompt-foot button:hover:not(:disabled) { color: var(--ink); border-color: var(--muted); }
+.prompt-foot button:disabled { opacity: .4; cursor: default; }
+.prompt-foot button.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.prompt-foot button.primary:hover:not(:disabled) { background: var(--rec); border-color: var(--rec); color: #fff; }
+
+@media (max-width: 640px) {
+  .utt { grid-template-columns: 1fr; gap: .15rem; }
+  .side { text-align: left; display: flex; gap: .8rem; align-items: baseline; padding-top: .6rem; }
+  .side .spk { margin-left: 0; margin-top: 0; }
+  .deck-inner { flex-wrap: wrap; gap: .6rem .9rem; padding: .6rem 1rem; }
+  .deck-title { order: -1; flex-basis: 100%; }
+  .row { grid-template-columns: 1fr auto; }
+  .row-meta { display: none; }
+  .chips { flex-wrap: wrap; justify-content: flex-end; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+
+const app = document.getElementById("app");
+const motionOK = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+let pollTimer = null;
+let player = null; // per-recording playback state; rebuilt on each view
+let groupsList = null;  // folders that exist, from /api/library
+let keysSet = null;     // which API keys are set, from /api/library
+let staleCode = null;   // set when the code on disk is newer than the running server (after a git pull)
+let combinePick = null; // while picking recordings to combine: the Set of picked ids
+
+const esc = s => String(s).replace(/[&<>"]/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function clock(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
+  const p = n => String(n).padStart(2, "0");
+  return h ? `${h}:${p(m)}:${p(s)}` : `${m}:${p(s)}`;
+}
+
+// "speaker_0" → "Speaker 1"; library-matched profiles arrive as slugs
+// ("jane-doe"), which read fine once the dashes become spaces.
+function prettySpk(s) {
+  const m = /^speaker_(\d+)$/.exec(s);
+  if (m) return "Speaker " + (1 + +m[1]);
+  const mic = /^mic_(\d+)$/.exec(s);
+  if (mic) return "Mic " + mic[1];
+  if (/^[A-Z]$/.test(s)) return "Speaker " + s;
+  return s.replace(/-\d+$/, "").split(/[-_]+/).map(w => w ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
+}
+
+const dispTitle = it => it.ai_title || it.title;
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || res.statusText);
+  return body;
+}
+
+function setPoll(fn, ms) {
+  clearInterval(pollTimer);
+  pollTimer = fn ? setInterval(fn, ms || 2500) : null;
+}
+
+/* ---------------------------------------------------------------- routing */
+
+function route() {
+  if (player) { player.destroy(); player = null; }
+  document.body.classList.remove("editing");
+  const m = location.hash.match(/^#\/r\/([a-z0-9-]+)/);
+  if (m) showRecording(m[1]); else showLibrary();
+}
+window.addEventListener("hashchange", route);
+
+/* ---------------------------------------------------------------- library */
+
+async function showLibrary() {
+  document.body.classList.add("dark");
+  document.title = "Reel";
+  let last = "";
+  const refresh = async initial => {
+    const [lib, inbox] = await Promise.all([
+      api("/api/library"), api("/api/inbox").catch(() => null)]);
+    const items = lib.items; if (lib.groups) groupsList = lib.groups;
+    keysSet = lib.keys || null;
+    staleCode = lib.code && lib.code.stale ? lib.code : null;
+    const snap = JSON.stringify([items, inbox, keysSet]);
+    if (!initial && snap === last) return; // avoid pointless re-renders
+    // Re-rendering would close a folder drop-down mid-pick or wipe half-typed names;
+    // catch up once the control loses focus.
+    if (!initial && document.activeElement && document.activeElement.matches("[data-place], [data-note]")) return;
+    last = snap;
+    renderLibrary(items, inbox);
+  };
+  await refresh(true);
+  setPoll(() => refresh(false).catch(() => {}));
+}
+
+function libraryRow(it) {
+  const date = new Date(it.recorded || it.added).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const dur = it.duration_ms ? clock(it.duration_ms) : "—:——";
+  const lang = it.language ? ` · ${it.language.toUpperCase()}` : "";
+  const mics = it.tracks ? `<span class="mics" title="${esc(it.tracks.map(t => t.original || t.file).join("\n"))}">${it.tracks.length} MICS</span>` : "";
+  const folderTip = "The folder it's filed in";
+  // Movable only once nothing is working on it (as set_place requires).
+  const movable = (it.status === "ready" || it.status === "error") && it.clean_status !== "working";
+  const chip = (movable
+    ? `<select class="chip folder" data-place="${it.id}" title="${esc(folderTip)} — pick a folder to move it" aria-label="Folder">${groupOptions(it.group)}</select>`
+    : `<span class="chip folder" title="${esc(folderTip)}">${esc(it.group || "")}</span>`)
+    + (it.status === "ready" ? '<span class="chip ready">READY</span>'
+    : it.status === "error" ? '<span class="chip error">ERROR</span>'
+    : `<span class="chip working">${esc(it.status.toUpperCase())}</span>`);
+  const combinedChip = it.combined
+    ? `<span class="chip ready" title="${esc("Combined from:\n" + it.combined.map(o => o.title).join("\n") + "\n\n⧉ UNCOMBINE on its page puts them back")}">⧉ ${it.combined.length}</span>` : "";
+  const err = it.status === "error"
+    ? `<div class="err-note"><span>${esc(it.error || "Transcription failed.")}</span>
+         ${it.combined ? `<button class="retry" data-uncombine="${it.id}" title="Put back the recordings this was combined from, as they were">⧉ UNCOMBINE</button>` : ""}
+         <button class="retry" data-retry="${it.id}" title="Run the transcription again from the saved audio">↻ RETRY</button></div>`
+    : "";
+  const combinable = movable && it.denoise !== "working";
+  const pick = combinePick
+    ? `<input type="checkbox" class="pick" data-pick="${it.id}" ${combinePick.has(it.id) ? "checked" : ""} ${combinable ? "" : "disabled"}
+         title="${combinable ? "Combine this one" : "Wait until it's done processing"}" aria-label="Pick ${esc(dispTitle(it))}">` : "";
+  const flags = `<span class="row-flags">
+      <label class="flag${it.no_training ? " on" : ""}" title="${esc(NO_TRAINING_TIP)}"><input type="checkbox" data-notrain="${it.id}" ${it.no_training ? "checked" : ""}> NOT FOR TRAINING</label>
+      ${it.no_training ? noteBox(it, "training_ask") : ""}
+    </span>`;
+  return `<div class="row${combinePick && combinePick.has(it.id) ? " picked" : ""}">
+    <span class="row-main">
+      <span class="row-head">${pick}<a class="row-title" href="#/r/${it.id}" title="${esc(it.title)}">${esc(dispTitle(it))}</a></span>
+      ${flags}
+    </span>
+    <span class="row-meta">${mics}${dur} · ${date}${lang}</span>
+    <span class="chips">${combinedChip}${chip}</span>
+    <button class="del" data-del="${it.id}" title="Archive recording — moves it to archive/ in your data folder" aria-label="Archive ${esc(dispTitle(it))}">✕</button>
+    ${err}${heldNote(it)}
+  </div>`;
+}
+
+function fmtSize(b) {
+  return b >= 1e9 ? (b / 1e9).toFixed(2) + " GB" : b >= 1e6 ? Math.round(b / 1e6) + " MB" : Math.round(b / 1e3) + " KB";
+}
+
+// Recorder files waiting in inbox/ — matched into conversations by the server.
+function inboxPanel(inbox) {
+  if (!inbox) return "";
+  const files = inbox.files || [];
+  const importing = inbox.importing || [];
+  const cleared = inbox.cleared || [];
+  if (!files.length && !importing.length && !cleared.length) return "";
+  const home = inbox.folder.replace(/^\/Users\/[^/]+/, "~");
+  const state = f => {
+    if (f.status === "error") return `<span class="state bad">${esc(f.error || "error")}</span>`;
+    if (f.status === "copying") return '<span class="state hot">COPYING…</span>';
+    if (f.status === "grouping") return '<span class="state hot">GROUPING…</span>';
+    if (f.status === "attaching") return '<span class="state hot">JOINING A RECORDING…</span>';
+    if (f.status === "transcribing") return '<span class="state hot">TRANSCRIBING…</span>';
+    if (f.status === "skipped") return `<span class="state" title="DJI saves every take twice. ${esc(f.twin)} is the raw 32-bit float recording; this file is the same take with the transmitter's own processing (limiter, noise cancelling…) baked in. Reel uses the raw one; this copy moves to inbox/skipped/ once its twin has been taken.">NOT USED · PROCESSED TWIN OF THE _orig FILE</span>`;
+    if (f.status === "holding") return `<span class="state" title="This is a DJI recorder's processed copy, and its raw twin ${esc(f.twin)} hasn't arrived (still copying?). If it doesn't show up, this copy is used as it is when the countdown ends.">WAITING FOR ITS _orig TWIN · ${clock(f.hold_in * 1000)}</span>`;
+    if (f.waiting_for) return `<span class="state hot" title="This file may belong with “${esc(f.waiting_for)}”, which is still being processed. It's added to it as soon as that's done, if it matches.">WAITING FOR “${esc(f.waiting_for)}” TO FINISH PROCESSING</span>`;
+    if (f.single_in != null) return `<span class="state" title="No other file matches this one yet. It's transcribed on its own when the countdown ends — unless a partner file shows up.">NO MATCH YET · ALONE IN ${clock(f.single_in * 1000)}</span>`;
+    return '<span class="state">WAITING</span>';
+  };
+  const waiting = files.filter(f => f.status === "waiting");
+  const phases = {
+    copying: m => [`COPYING FROM ${m.volume.toUpperCase()} · ${m.done + 1} OF ${m.total}`, "A recorder is plugged in: its new recordings are being copied into the inbox. Leave it plugged in."],
+    checking: m => [`CHECKING ${m.volume.toUpperCase()} · ${m.done + 1} OF ${m.total}`, "Comparing each recording on the recorder with Reel's copy, byte for byte, before deleting it there. Leave it plugged in."],
+    clearing: m => [`CLEARING ${m.volume.toUpperCase()}`, "Deleting the recordings Reel has identical copies of from the recorder. Leave it plugged in."],
+  };
+  const imports = importing.map(m => {
+    const [text, tip] = (phases[m.phase] || phases.copying)(m);
+    return `<div class="inbox-row">
+      <span class="name" title="${esc(m.file)}">${esc(m.file)}</span>
+      <span class="state hot" title="${esc(tip)}">${esc(text)}</span>
+      <span class="state"></span><span></span>
+    </div>`;
+  }).join("") + cleared.map(m => `<div class="inbox-row">
+      <span class="name">${esc(m.volume)}</span>
+      <span class="state" title="Every recording deleted from the recorder was first compared with Reel's copy, byte for byte.${m.kept ? ` ${m.kept} recording${m.kept === 1 ? " has" : "s have"} no identical copy in Reel and stayed on it.` : ""}">${m.copied} COPIED · ${m.cleared} CLEARED FROM THE MIC${m.kept ? ` · ${m.kept} KEPT ON IT` : ""} · SAFE TO UNPLUG</span>
+      <span class="state"></span><span></span>
+    </div>`).join("");
+  const rows = imports + files.map(f => `<div class="inbox-row">
+      <span class="name" title="${esc(f.name)}">${esc(f.name)}</span>
+      ${state(f)}
+      <span class="state">${fmtSize(f.size)}</span>
+      <span style="display:flex;gap:.4rem">
+        <button data-inbox-single="${esc(f.name)}" ${f.status === "waiting" || f.status === "holding" ? "" : "disabled"} title="Transcribe this file by itself now">ALONE</button>
+        <button data-inbox-del="${esc(f.name)}" title="Archive this file — moves it to archive/inbox/">✕</button>
+      </span>
+    </div>`).join("");
+  return `<div class="inbox">
+    <div class="inbox-head">
+      <span><b>INBOX</b> · ${files.length} RECORDER FILE${files.length === 1 ? "" : "S"}</span>
+      <span class="inbox-path" title="${esc(inbox.folder)}">${esc(home)}</span>
+      <div class="inbox-actions">
+        ${waiting.length ? `<button data-inbox-scan title="Stop waiting for partner files: match what matches, transcribe the rest alone">SORT NOW</button>` : ""}
+      </div>
+    </div>
+    ${rows}
+    <div class="inbox-note">Files from the same conversation are found by their audio and become one recording with a mic per speaker.</div>
+  </div>`;
+}
+
+function renderLibrary(items, inbox) {
+  if (combinePick) // drop picks that have gone (combined, archived) since
+    for (const id of combinePick) if (!items.some(i => i.id === id)) combinePick.delete(id);
+  const rows = items.map(libraryRow).join("");
+  const n = combinePick ? combinePick.size : 0;
+  app.innerHTML = `<div class="shelf">
+    <div class="brand"><span class="dot">●</span> R E E L</div>
+    ${staleCode ? `<div class="stale" title="The files on disk changed after this server started (git pull?). Everything you see runs the old code until Reel is restarted.">⚠ REEL WAS UPDATED ON DISK${staleCode.on_disk ? ` (${esc(staleCode.running || "?")} → ${esc(staleCode.on_disk)})` : ""} — RESTART IT TO RUN THE NEW CODE</div>` : ""}
+    <div class="tagline">Transcribe a recording, then click any word to jump the audio.</div>
+    ${keysSet && !keysSet.elevenlabs ? `<div class="setup-note">
+      <span>Reel needs an ElevenLabs API key to transcribe (and, optionally, an Anthropic one for titles and the
+        clean-up). Paste yours into the settings — it takes a minute.</span>
+      <button id="add-keys">⚙ ADD YOUR API KEYS</button></div>` : ""}
+    <div class="shelf-head">
+      <span>${items.length} RECORDING${items.length === 1 ? "" : "S"}</span>
+      <div class="shelf-actions">${combinePick ? `
+        <span class="pick-note">PICK THE RECORDINGS TO COMBINE · ${n} PICKED</span>
+        <button class="rec-btn theme-btn" id="pick-cancel">CANCEL</button>
+        <button class="add-btn" id="pick-go" ${n < 2 ? "disabled" : ""}>⧉ COMBINE${n ? " " + n : ""}</button>` : `
+        <button class="rec-btn theme-btn" id="theme" title="Switch between the light and dark look">${document.documentElement.dataset.theme === "light" ? "☾ DARK" : "☀ LIGHT"}</button>
+        <button class="rec-btn theme-btn" id="settings" title="API keys, the Google Drive backup, and how new recordings start out">⚙ SETTINGS</button>
+        <button class="rec-btn theme-btn" id="combine" title="Make one recording of several: mics of the same conversation, or recordings made one after another">⧉ COMBINE…</button>
+        <button class="rec-btn" id="rec">● RECORD</button>
+        <button class="add-btn" id="add">+ ADD AUDIO</button>`}
+      </div>
+      <input id="file" type="file" multiple hidden
+        accept="audio/*,video/mp4,video/quicktime,video/webm,.m4a,.m4b,.mp3,.wav,.flac,.ogg,.opus,.aac,.aiff,.mov,.mkv,.amr,.3gp,.wma">
+    </div>
+    ${inboxPanel(inbox)}
+    ${rows || `<div class="empty">
+      <b>No recordings yet.</b><br>
+      Hit ● RECORD to capture the microphone, drop an audio file<br>
+      anywhere on this page, use + ADD AUDIO,<br>
+      or run <code>python3 transcribe.py path/to/audio.mp3</code><br>
+      Several recorders, one conversation? Drop all their files into
+      <code>${esc(inbox && inbox.folder ? inbox.folder.replace(/^\/Users\/[^/]+/, "~") : "inbox/")}</code>.
+    </div>`}
+  </div>`;
+
+  const inboxCall = async (path, body) => {
+    try {
+      await api(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
+    } catch (err) {
+      alert(err.message);
+    }
+    showLibrary();
+  };
+  const scan = app.querySelector("[data-inbox-scan]");
+  if (scan) scan.onclick = () => inboxCall("/api/inbox/scan");
+  app.querySelectorAll("[data-inbox-single]").forEach(btn => {
+    btn.onclick = () => inboxCall("/api/inbox/single", { name: btn.dataset.inboxSingle });
+  });
+  app.querySelectorAll("[data-inbox-del]").forEach(btn => {
+    btn.onclick = async () => {
+      if (!confirm(`Archive "${btn.dataset.inboxDel}"?\n\nIt moves to archive/inbox/ — nothing is deleted.`)) return;
+      try {
+        await api("/api/inbox/" + encodeURIComponent(btn.dataset.inboxDel), { method: "DELETE" });
+      } catch (err) { alert(err.message); }
+      showLibrary();
+    };
+  });
+
+  const input = document.getElementById("file");
+  input.onchange = () => uploadFiles(input.files);
+  if (combinePick) {
+    document.getElementById("pick-cancel").onclick = () => { combinePick = null; renderLibrary(items, inbox); };
+    document.getElementById("pick-go").onclick = e => combinePicked(items, e.target);
+    const toggle = (id, on) => { if (on) combinePick.add(id); else combinePick.delete(id); renderLibrary(items, inbox); };
+    app.querySelectorAll("[data-pick]").forEach(box => { box.onchange = () => toggle(box.dataset.pick, box.checked); });
+    app.querySelectorAll(".row-title").forEach(a => {
+      a.onclick = e => { // while picking, a click on the row picks it instead of opening it
+        e.preventDefault();
+        const box = a.closest(".row").querySelector("[data-pick]");
+        if (box && !box.disabled) toggle(box.dataset.pick, !box.checked);
+      };
+    });
+  } else {
+    document.getElementById("theme").onclick = () => {
+      const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+      localStorage.setItem("reel-theme", next); document.documentElement.dataset.theme = next; showLibrary();
+    };
+    document.getElementById("settings").onclick = () => editSettings().catch(err => alert("Couldn't load the settings: " + err.message));
+    const addKeys = document.getElementById("add-keys");
+    if (addKeys) addKeys.onclick = () => editSettings().catch(err => alert("Couldn't load the settings: " + err.message));
+    document.getElementById("combine").onclick = () => { combinePick = new Set(); renderLibrary(items, inbox); };
+    document.getElementById("rec").onclick = startRecording;
+    document.getElementById("add").onclick = () => input.click();
+  }
+  app.querySelectorAll("[data-uncombine]").forEach(btn => {
+    btn.onclick = async () => { if (await uncombine(items.find(i => i.id === btn.dataset.uncombine), btn)) showLibrary(); };
+  });
+  app.querySelectorAll("[data-del]").forEach(btn => {
+    btn.onclick = async e => {
+      e.preventDefault(); e.stopPropagation();
+      const it = items.find(i => i.id === btn.dataset.del);
+      if (!confirm(`Archive "${it ? dispTitle(it) : "recording"}"?\n\nIt moves to archive/ in your data folder. Nothing is deleted.`)) return;
+      await api("/api/item/" + btn.dataset.del, { method: "DELETE" });
+      showLibrary();
+    };
+  });
+  app.querySelectorAll("[data-retry]").forEach(btn => {
+    btn.onclick = e => { e.preventDefault(); e.stopPropagation(); retryTranscription(btn.dataset.retry, btn); };
+  });
+  wireHeld(app);
+  app.querySelectorAll("[data-place]").forEach(sel => {
+    sel.onchange = async () => {
+      const it = items.find(i => i.id === sel.dataset.place);
+      let g = sel.value;
+      if (g === "__new__") { g = askNewFolder(); if (!g) { sel.value = it.group; return; } }
+      try { await placeItem(it.id, g); } catch (err) { alert(err.message); }
+      showLibrary();
+    };
+  });
+  app.querySelectorAll("[data-notrain]").forEach(box => {
+    box.onchange = async () => {
+      try { await setFlags(box.dataset.notrain, { no_training: box.checked }); } catch (err) { alert(err.message); }
+      showLibrary();
+    };
+  });
+  app.querySelectorAll("[data-note]").forEach(box => {
+    const it = items.find(i => i.id === box.dataset.id);
+    box.onkeydown = e => {
+      if (e.key === "Escape") box.value = it[box.dataset.note] || "";
+      if (e.key === "Enter" || e.key === "Escape") box.blur();
+    };
+    box.onchange = async () => {
+      try { await setFlags(it.id, { [box.dataset.note]: box.value }); } catch (err) { alert(err.message); }
+      showLibrary();
+    };
+  });
+}
+
+const NO_TRAINING_TIP = "Not for training: keep this recording out of training data. Saved in its item.json, next to the transcript";
+// The free-text note that comes with a ticked box (NOTE_DEFAULTS in transcribe.py).
+const NOTES = {
+  training_ask: { label: "ASK FIRST", placeholder: "who could OK it", tip: "Not for training unless these people say it's OK: ask them first" },
+};
+
+// A note a ⚙ SETTINGS default filled in, rather than a person (DEFAULT_NOTE in transcribe.py).
+const DEFAULT_NOTE = "<default>";
+
+function noteBox(it, key, attrs = "") {
+  const n = NOTES[key];
+  return `<label class="note" title="${esc(n.tip)}" ${attrs}>${n.label} <input type="text" class="${it[key] === DEFAULT_NOTE ? "dflt" : ""}" data-note="${key}" data-id="${it.id}" value="${esc(it[key] || "")}" placeholder="${esc(n.placeholder)}" maxlength="500"></label>`;
+}
+
+// Entering a box that still says <default> selects it, so typing the real reason replaces it.
+document.addEventListener("focusin", e => {
+  if (e.target.matches("[data-note]") && e.target.value === DEFAULT_NOTE) setTimeout(() => e.target.select());
+});
+
+// Set any of a recording's notes ({no_training}, {training_ask}); returns the updated item.
+async function setFlags(id, body) {
+  return (await api(`/api/item/${id}/flags`, { method: "POST", body: JSON.stringify(body) })).item;
+}
+
+// The folders as <option>s for a folder drop-down, then "new folder…".
+function groupOptions(current) {
+  return (groupsList || [current]).map(g => `<option value="${esc(g)}" ${g === current ? "selected" : ""}>${esc(g)}</option>`).join("")
+    + '<option value="__new__">new folder…</option>';
+}
+
+function askNewFolder() {
+  return (prompt("New folder name (lowercase letters, digits and dashes), e.g. interviews:") || "").trim().toLowerCase();
+}
+
+// Move a recording to another folder; returns the updated item.
+async function placeItem(id, group) {
+  const res = await api(`/api/item/${id}/place`, { method: "POST", body: JSON.stringify({ group }) });
+  groupsList = res.groups;
+  return res.item;
+}
+
+// Combine the picked recordings into one (combine_items in transcribe.py).
+async function combinePicked(items, btn) {
+  const picked = items.filter(i => combinePick.has(i.id));
+  const folders = [...new Set(picked.map(i => i.group))];
+  if (folders.length > 1) return alert(`Those are in different folders (${folders.join(", ")}): move them into one folder first.`);
+  if (!confirm(`Combine ${picked.length} recordings into one?\n\n${picked.map(i => "• " + dispTitle(i)).join("\n")}\n\n`
+    + "Their recorder files are lined up and mixed into a single recording, which is transcribed afresh "
+    + "(uses transcription credit). Mics recording at the same time become one conversation; recordings made "
+    + "one after another are joined, with silence for the time in between.\n\n"
+    + "⧉ UNCOMBINE on its page puts them back as they were.")) return;
+  btn.disabled = true; btn.textContent = "COMBINING…";
+  try {
+    await api("/api/combine", { method: "POST", body: JSON.stringify({ ids: picked.map(i => i.id) }) });
+    combinePick = null;
+  } catch (err) { alert("Couldn't combine them: " + err.message); }
+  showLibrary();
+}
+
+// Put a combined recording's originals back; true when done (the caller moves on).
+async function uncombine(item, btn) {
+  if (!confirm(`Uncombine “${dispTitle(item)}”?\n\nThe ${item.combined.length} recordings it was made from come back as `
+    + `they were, with their own transcripts:\n${item.combined.map(o => "• " + o.title).join("\n")}\n\n`
+    + "This combined recording moves to the archive.")) return false;
+  btn.disabled = true;
+  try {
+    await api(`/api/item/${item.id}/uncombine`, { method: "POST" });
+    return true;
+  } catch (err) {
+    alert("Couldn't uncombine it: " + err.message);
+    btn.disabled = false;
+    return false;
+  }
+}
+
+// Mics whose adding failed: the server put the recording back as it was and
+// kept their files in held/. Offer to try again, or to leave them out.
+function heldNote(it) {
+  const f = it.mics_failed;
+  if (!f) return "";
+  const n = f.mics.length, files = f.mics.map(m => m[0] + (m.length > 1 ? ` (+${m.length - 1})` : "")).join(", ");
+  return `<div class="err-note held-note"><span>Couldn't add ${n === 1 ? "a mic" : n + " mics"} (${esc(files)}): ${esc(f.error || "the rebuild failed")}${/[.!?)]$/.test(f.error || "") ? "" : "."}
+      The recording is as it was before; ${n === 1 ? "its files are" : "their files are"} kept.</span>
+    <button class="retry" data-held="retry" data-id="${it.id}" title="Add ${n === 1 ? "it" : "them"} again: align, mix and transcribe">↻ TRY AGAIN</button>
+    <button class="retry" data-held="drop" data-id="${it.id}" title="Leave ${n === 1 ? "it" : "them"} out: the files move to archive/">LEAVE OUT</button></div>`;
+}
+
+function wireHeld(root) {
+  root.querySelectorAll("[data-held]").forEach(btn => {
+    btn.onclick = async e => {
+      e.preventDefault(); e.stopPropagation();
+      btn.disabled = true;
+      try {
+        await api(`/api/item/${btn.dataset.id}/held`, { method: "POST", body: JSON.stringify({ action: btn.dataset.held }) });
+      } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        return;
+      }
+      route();
+    };
+  });
+}
+
+// Re-queue a failed transcription; the caller's view refreshes on its own poll.
+async function retryTranscription(id, btn) {
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "↻ RETRYING…";
+  try {
+    await api(`/api/item/${id}/retry`, { method: "POST" });
+  } catch (err) {
+    alert("Couldn't retry the transcription: " + err.message);
+    btn.disabled = false;
+    btn.textContent = label;
+    return;
+  }
+  route(); // re-render whichever view we're on with the new status
+}
+
+async function uploadFiles(files) {
+  for (const f of files) {
+    try {
+      await api("/api/upload?name=" + encodeURIComponent(f.name), { method: "POST", body: f });
+    } catch (err) {
+      alert(`Couldn't add ${f.name}: ${err.message}`);
+    }
+  }
+  if (!location.hash || location.hash === "#/") showLibrary();
+}
+
+document.addEventListener("dragover", e => {
+  e.preventDefault();
+  document.body.classList.add("dropping");
+});
+document.addEventListener("dragleave", e => {
+  if (!e.relatedTarget) document.body.classList.remove("dropping");
+});
+document.addEventListener("drop", e => {
+  e.preventDefault();
+  document.body.classList.remove("dropping");
+  if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+});
+
+/* -------------------------------------------------------- mic recording */
+
+const rec = { mr: null, chunks: [], stream: null, actx: null,
+              startedAt: 0, pausedMs: 0, pauseStart: 0, timer: 0, raf: 0 };
+
+async function startRecording() {
+  if (rec.mr) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder) {
+    alert("This browser doesn't support in-page recording.");
+    return;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    alert("Microphone access was blocked: " + err.message);
+    return;
+  }
+  // MP4/AAC first, not WebM/Opus: macOS CoreAudio (afconvert) cannot read WebM
+  // at all, so a WebM recording gets no denoised copy and cannot join a mix
+  // unless ffmpeg happens to be installed. WebM stays as the fallback for
+  // browsers that cannot record MP4.
+  const type = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"]
+    .find(t => MediaRecorder.isTypeSupported(t)) || "";
+  rec.stream = stream;
+  rec.chunks = [];
+  rec.mr = new MediaRecorder(stream, type ? { mimeType: type } : {});
+  rec.mr.ondataavailable = e => { if (e.data.size) rec.chunks.push(e.data); };
+  rec.mr.start(1000);
+  rec.startedAt = Date.now();
+  rec.pausedMs = rec.pauseStart = 0;
+  showRecbar();
+}
+
+function showRecbar() {
+  const bar = document.createElement("div");
+  bar.className = "recbar";
+  bar.id = "recbar";
+  bar.innerHTML = `<span class="dot">●</span><time>0:00</time>
+    <div class="meter"><div></div></div>
+    <button class="pause">PAUSE</button>
+    <button class="stop">STOP &amp; TRANSCRIBE</button>
+    <button class="ditch" title="Discard recording" aria-label="Discard recording">✕</button>`;
+  document.body.appendChild(bar);
+
+  const timeEl = bar.querySelector("time");
+  rec.timer = setInterval(() => {
+    const paused = rec.mr && rec.mr.state === "paused";
+    timeEl.textContent = clock((paused ? rec.pauseStart : Date.now()) - rec.startedAt - rec.pausedMs);
+  }, 250);
+
+  try { // live input level, so you can see the mic is actually picking up
+    rec.actx = new AudioContext();
+    const analyser = rec.actx.createAnalyser();
+    analyser.fftSize = 512;
+    rec.actx.createMediaStreamSource(rec.stream).connect(analyser);
+    const data = new Uint8Array(analyser.fftSize);
+    const fill = bar.querySelector(".meter > div");
+    const level = () => {
+      if (!rec.mr) return;
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        const v = (data[i] - 128) / 128;
+        sum += v * v;
+      }
+      fill.style.width = Math.min(100, Math.sqrt(sum / data.length) * 300) + "%";
+      rec.raf = requestAnimationFrame(level);
+    };
+    level();
+  } catch (err) { /* meter is optional */ }
+
+  bar.querySelector(".pause").onclick = e => {
+    if (rec.mr.state === "paused") {
+      rec.pausedMs += Date.now() - rec.pauseStart;
+      rec.mr.resume();
+      bar.classList.remove("paused");
+      e.target.textContent = "PAUSE";
+    } else {
+      rec.pauseStart = Date.now();
+      rec.mr.pause();
+      bar.classList.add("paused");
+      e.target.textContent = "RESUME";
+    }
+  };
+  bar.querySelector(".stop").onclick = () => stopRecording(true);
+  bar.querySelector(".ditch").onclick = () => {
+    if (confirm("Discard this recording?")) stopRecording(false);
+  };
+}
+
+function stopRecording(save) {
+  const mr = rec.mr;
+  if (!mr) return;
+  mr.onstop = async () => {
+    const type = mr.mimeType || "audio/webm";
+    const ext = type.includes("mp4") ? ".m4a" : ".webm";
+    const blob = new Blob(rec.chunks, { type });
+    cleanupRecording();
+    if (!save || !blob.size) return;
+    const t = new Date();
+    const p = n => String(n).padStart(2, "0");
+    const name = `Recording ${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}` +
+                 ` ${p(t.getHours())}.${p(t.getMinutes())}${ext}`;
+    try {
+      await api("/api/upload?name=" + encodeURIComponent(name), { method: "POST", body: blob });
+    } catch (err) {
+      alert("Couldn't save the recording: " + err.message);
+      return;
+    }
+    if (location.hash && location.hash !== "#/") location.hash = "#/";
+    else showLibrary();
+  };
+  mr.stop();
+}
+
+function cleanupRecording() {
+  clearInterval(rec.timer);
+  cancelAnimationFrame(rec.raf);
+  if (rec.stream) rec.stream.getTracks().forEach(t => t.stop());
+  if (rec.actx) rec.actx.close().catch(() => {});
+  const bar = document.getElementById("recbar");
+  if (bar) bar.remove();
+  rec.mr = rec.stream = rec.actx = null;
+  rec.chunks = [];
+}
+
+window.addEventListener("beforeunload", e => {
+  if (rec.mr) e.preventDefault(); // still recording — make the browser ask first
+});
+
+/* -------------------------------------------------------------- recording */
+
+async function showRecording(id) {
+  document.body.classList.remove("dark");
+  const { item, transcript, clean } = await api("/api/item/" + id);
+  document.title = dispTitle(item) + " — Reel";
+  if (item.status !== "ready" || !transcript) {
+    renderWaiting(item);
+    if (item.status !== "error") setPoll(() => showRecording(id));
+    else setPoll(null);
+    return;
+  }
+  setPoll(null);
+  renderRecording(item, transcript, clean);
+  if (item.clean_status === "working") {
+    setPoll(async () => { // wait for the clean-up job, then swap in without losing playback
+      const r = await api("/api/item/" + id);
+      if (r.item.clean_status !== "working") {
+        setPoll(null);
+        const st = player ? player.snapshot() : null;
+        renderRecording(r.item, r.transcript, r.clean);
+        if (st) player.restore(st);
+      }
+    });
+  }
+}
+
+function renderWaiting(item) {
+  const multi = !!item.tracks;
+  const msg = item.status === "error"
+    ? `<div class="sub bad">${esc(item.error || "Something went wrong.")}</div>
+       <button class="retry-big" id="retry" title="Run the transcription again from the saved audio">↻ RETRY TRANSCRIPTION</button>
+       ${item.combined ? `<button class="retry-big" id="uncombine" title="Put back the recordings this was combined from, as they were">⧉ UNCOMBINE</button>` : ""}`
+    : item.status === "cutting" || item.status === "splitting"
+    ? `<div class="sub">Writing the edited audio${multi ? ", the mics' files" : ""} and transcript — a minute or so for a long recording.</div>`
+    : multi && item.status !== "transcribing"
+    ? `<div class="sub">${item.tracks.length} recorder files: lining them up (start offset and clock drift),<br>then mixing them so each voice comes from its own mic — a few minutes per hour of audio.</div>`
+    : `<div class="sub">Uploading and transcribing. This usually takes well under a minute<br>per hour of audio — the page will update on its own.</div>`;
+  const label = item.status === "error" ? "TRANSCRIPTION FAILED" : item.status.toUpperCase();
+  app.innerHTML = `<header class="deck"><div class="deck-inner">
+      <a class="back" href="#/">← LIBRARY</a>
+      <div class="deck-title">${esc(dispTitle(item))}</div>
+    </div></header>
+    <main class="paper"><div class="wait"><div class="big">${label}</div>${msg}</div></main>`;
+  const rb = document.getElementById("retry");
+  if (rb) rb.onclick = () => retryTranscription(item.id, rb);
+  const uc = document.getElementById("uncombine");
+  if (uc) uc.onclick = async () => { if (await uncombine(item, uc)) location.hash = "#/"; };
+}
+
+// Within a speaker's turn, a silence longer than PAUSE_MS shows as "…" (the
+// transcript's utterances break at it; the page doesn't), one longer than
+// TURN_PAUSE_MS starts a new turn (name and timecode again: 3% of pauses run
+// that long — reading, walking off — where 90% are under 9 s); a turn longer
+// than PARA_WORDS breaks into paragraphs at the next pause or sentence end.
+const PAUSE_MS = 1500;
+const TURN_PAUSE_MS = 20000;
+const PARA_WORDS = 150;
+
+/* Sections: one per speaker turn (consecutive utterances of one speaker run
+   together), long turns split into paragraphs (cont: no speaker label). Falls
+   back to gap-based paragraphs when diarization returned nothing. */
+function buildSections(transcript) {
+  const words = transcript.words;
+  const turns = [];
+  for (const sec of buildUtteranceSections(transcript)) {
+    const last = turns[turns.length - 1];
+    const gap = last ? words[sec.idx[0]].start - words[last.idx[last.idx.length - 1]].end : 0;
+    if (last && last.speaker === sec.speaker && gap <= TURN_PAUSE_MS) last.idx.push(...sec.idx);
+    else turns.push({ speaker: sec.speaker, start: sec.start, idx: [...sec.idx] });
+  }
+  const out = [];
+  for (const turn of turns) {
+    let para = null;
+    for (const i of turn.idx) {
+      const n = para ? para.idx.length : 0;
+      const prev = para ? words[para.idx[n - 1]] : null;
+      const pause = prev ? words[i].start - prev.end > PAUSE_MS : false;
+      const sentenceEnd = prev ? /[.?!]["”')\]]*$/.test(prev.text) : false;
+      if (!para || (n >= PARA_WORDS && (pause || sentenceEnd)) || n >= 2 * PARA_WORDS) {
+        para = { speaker: turn.speaker, start: words[i].start, idx: [], cont: !!para };
+        out.push(para);
+      }
+      para.idx.push(i);
+    }
+  }
+  return out;
+}
+
+/* The transcript's own utterances; gap-based paragraphs when diarization
+   returned nothing. */
+function buildUtteranceSections(transcript) {
+  const words = transcript.words;
+  const utts = transcript.utterances || [];
+  const sections = [];
+  if (utts.length) {
+    let w = 0;
+    for (let u = 0; u < utts.length; u++) {
+      const idx = [];
+      const isLast = u === utts.length - 1;
+      while (w < words.length && (isLast || words[w].start < utts[u + 1].start)) {
+        idx.push(w++);
+      }
+      if (idx.length) sections.push({ speaker: utts[u].speaker, start: utts[u].start, idx });
+    }
+  } else {
+    let cur = null;
+    for (let i = 0; i < words.length; i++) {
+      const gap = i > 0 ? words[i].start - words[i - 1].end : 0;
+      if (!cur || gap > 1500 || cur.idx.length >= 150) {
+        cur = { speaker: null, start: words[i].start, idx: [] };
+        sections.push(cur);
+      }
+      cur.idx.push(i);
+    }
+  }
+  return sections;
+}
+
+/* Build the display-token stream. Verbatim mode = one token per word. Clean
+   mode applies removals and span edits: an edit's replacement text stands in
+   for original words s..e, with timestamps remapped proportionally across
+   that span, so every displayed token stays click-to-seek. */
+function buildTokens(words, clean, mode) {
+  const removed = mode === "clean" ? new Set(clean.removed || []) : null;
+  const editAt = new Map();
+  const inSpan = new Set();
+  if (mode === "clean") {
+    const edits = (clean.edits || []).slice();
+    for (const [i, text] of Object.entries(clean.replacements || {}))
+      edits.push({ s: +i, e: +i, text }); // older clean.json format
+    edits.sort((a, b) => a.s - b.s);
+    for (const ed of edits) {
+      if (inSpan.has(ed.s)) continue; // overlap guard
+      editAt.set(ed.s, ed);
+      for (let i = ed.s; i <= ed.e; i++) inSpan.add(i);
+    }
+  }
+  const tokens = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const ed = editAt.get(i);
+    if (ed) {
+      const parts = String(ed.text).split(/\s+/).filter(Boolean);
+      const e = Math.min(ed.e, words.length - 1);
+      const t0 = words[ed.s].start, t1 = words[e].end;
+      const total = parts.join(" ").length || 1;
+      const orig = words.slice(ed.s, e + 1).map(x => x.text).join(" ");
+      let done = 0;
+      for (const p of parts) {
+        tokens.push({ i, last: e, start: Math.round(t0 + (t1 - t0) * done / total), end: t1,
+                      text: p, cls: "w fx", title: "transcribed as: " + orig });
+        done += p.length + 1;
+      }
+      continue;
+    }
+    if (inSpan.has(i) || (removed && removed.has(i))) continue;
+    tokens.push({
+      i, last: i, start: w.start, end: w.end, text: w.text,
+      cls: "w" + (w.event ? " ev" : "") + (w.confidence < 0.5 ? " low" : ""),
+      title: w.confidence < 0.5
+        ? `heard with ${Math.round(w.confidence * 100)}% confidence` : "",
+    });
+  }
+  tokens.forEach((t, k) => { t.k = k; });
+  return tokens;
+}
+
+// A section's tokens, each with the silence before it (0 at the section start
+// and inside one edit's replacement words).
+function withPauses(words, toks) {
+  let prevEnd = null, prevI = null;
+  return toks.map(t => {
+    const gap = prevEnd === null || t.i === prevI ? 0 : words[t.i].start - prevEnd;
+    const from = prevEnd;
+    prevEnd = t.end; prevI = t.i;
+    return { t, pause: gap > PAUSE_MS ? gap : 0, from };
+  });
+}
+
+// Tooltip text for a multi-mic recording: how each file was lined up.
+function denoiseOn() { return localStorage.getItem("reel-denoise") !== "off"; }
+
+function micInfo(item) {
+  return item.tracks.map((t, i) => {
+    const who = (item.speaker_names || {})[t.speaker] || prettySpk(t.speaker || "mic_" + (i + 1));
+    const drift = t.drift != null ? ` · drift ${(t.drift * 1e6).toFixed(1)} ppm` : "";
+    const start = t.start != null ? ` · starts at ${clock(t.start * 1000)}` : "";
+    return `${who}: ${t.original || t.file}${start}${drift}`;
+  }).join("\n");
+}
+
+function renderRecording(item, transcript, clean) {
+  if (player) { player.destroy(); player = null; }
+  document.body.classList.remove("editing");
+  const canClean = item.clean_status === "ready" && clean;
+  const mode = canClean && localStorage.getItem("reel-mode-" + item.id) === "clean"
+    ? "clean" : "verbatim";
+  const words = transcript.words;
+  const tokens = buildTokens(words, clean, mode);
+  const sections = buildSections(transcript);
+  const speakers = [...new Set(sections.map(s => s.speaker).filter(Boolean))];
+  const spkClass = s => "spk-" + (speakers.indexOf(s) % 4);
+
+  const spkName = s => (item.speaker_names || {})[s] || prettySpk(s);
+  // Stretches cut out of the middle (item.cuts, ms): silent in the audio, skipped
+  // by the player, and marked ✂ where their words were.
+  const cuts = item.cuts || [];
+  const cutIn = (a, b) => cuts.reduce((sum, [x, y]) => sum + (x >= a - 1 && y <= b + 1 ? y - x : 0), 0);
+  const cutTotal = cuts.reduce((sum, [x, y]) => sum + y - x, 0);
+  let tk = 0, prevEnd = null;
+  const body = sections.map(sec => {
+    const lastIdx = sec.idx[sec.idx.length - 1];
+    const mine = [];
+    while (tk < tokens.length && tokens[tk].i <= lastIdx) mine.push(tokens[tk++]);
+    if (!mine.length) return "";
+    const spans = withPauses(words, mine).map(({ t, pause, from }) => {
+      const cut = cuts.length && from !== null ? cutIn(from, words[t.i].start) : 0;
+      return (cut ? `<span class="pause cut" title="${clock(cut)} cut out here">✂</span> `
+        : pause ? `<span class="pause" title="${(pause / 1000).toFixed(1)} s pause">…</span> ` : "") +
+        `<span class="${t.cls}" data-k="${t.k}"${t.title ? ` title="${esc(t.title)}"` : ""}>${esc(t.text)}</span>`;
+    }).join(" ");
+    const cutBefore = cuts.length && prevEnd !== null ? cutIn(prevEnd, words[mine[0].i].start) : 0;
+    prevEnd = mine[mine.length - 1].end;
+    const spk = sec.speaker && !sec.cont
+      ? `<button class="spk ${spkClass(sec.speaker)}" data-spk="${esc(sec.speaker)}" title="Rename this speaker">${esc(spkName(sec.speaker))}</button>` : "";
+    return (cutBefore ? `<div class="cut-mark"><span>✂ ${clock(cutBefore)} CUT OUT</span></div>` : "") +
+      `<section class="utt${sec.cont ? " cont" : ""}">
+      <div class="side"><button class="tc-btn" data-t="${sec.start}">${clock(sec.start)}</button>${spk}</div>
+      <p class="txt">${spans}</p>
+    </section>`;
+  }).join("");
+
+  const durMs = transcript.audio_duration_ms || item.duration_ms || 0;
+  const lang = transcript.language ? transcript.language.toUpperCase() : "";
+  app.innerHTML = `
+    <header class="deck">
+      <div class="deck-inner">
+        <a class="back" href="#/">← LIBRARY</a>
+        <div class="deck-title"><span class="rec-dot" id="recdot">●</span>&nbsp; <span id="deck-title-text">${esc(dispTitle(item))}</span></div>
+        <button class="play" id="play" aria-label="Play or pause (space)">PLAY</button>
+        <span class="tc"><b id="cur">0:00</b> <span>/ ${clock(durMs)}</span></span>
+        <button class="rate" id="rate" aria-label="Playback speed">1.0×</button>
+      </div>
+      <div class="bar" id="bar" title="Seek"><div class="bar-track">${durMs ? cuts.map(([a, b]) =>
+        `<div class="bar-cut" style="left:${a / durMs * 100}%;width:${(b - a) / durMs * 100}%" title="${clock(b - a)} cut out"></div>`).join("") : ""}<div class="bar-fill" id="fill"></div></div></div>
+    </header>
+    <main class="paper">
+      <div class="doc-head">
+        <h1 class="doc-title" id="doc-title" title="Click to edit the title${item.title_manual ? " (yours — kept even when the recording is rebuilt)" : ""} · from ${esc(item.title)}">${esc(dispTitle(item))}</h1>
+        <div class="doc-meta">
+          <span>${clock(durMs)}</span>${cutTotal ? `<span class="cuts" title="Cut out of the middle: silent in every file of this recording, and skipped when playing">✂ ${clock(cutTotal)} CUT OUT</span>` : ""}${lang ? `<span>${lang}</span>` : ""}
+          <span>${words.length.toLocaleString()} WORDS</span>
+          ${speakers.length > 1 ? `<span>${speakers.length} SPEAKERS</span>` : ""}
+          ${item.tracks ? `<span title="${esc(micInfo(item))}">${item.tracks.length} MICS</span>
+            <span class="seg" id="src" title="Listen to the auto-mix, or to one recorder's raw file">
+              <button class="on" data-src="-1">MIX</button>
+              ${item.tracks.map((t, i) => `<button data-src="${i}" title="${esc(t.original || t.file)}">${esc((item.speaker_names || {})[t.speaker] || prettySpk(t.speaker || "mic_" + (i + 1))).toUpperCase()}</button>`).join("")}
+            </span>` : ""}
+          ${item.denoise === "ready" ? `<span class="seg"><button id="denoise" class="${denoiseOn() ? "on" : ""}" title="Play the DeepFilterNet-denoised copy of the mix (the transcript was made from the untouched audio)">DENOISED</button></span>`
+            : item.denoise === "working" ? `<span class="seg"><button disabled title="DeepFilterNet is preparing a denoised copy">DENOISING…</button></span>` : ""}
+          <span class="place" title="The folder this recording is filed in">
+            <select id="place-group">${groupOptions(item.group)}</select>
+            <label class="${item.no_training ? "on" : ""}" title="${esc(NO_TRAINING_TIP)}"><input type="checkbox" id="no-training" ${item.no_training ? "checked" : ""}> NOT FOR TRAINING</label>
+            ${noteBox(item, "training_ask", item.no_training ? "" : "hidden")}
+          </span>
+          <button id="copy">COPY TEXT</button>
+          <button id="download">DOWNLOAD .TXT</button>
+          <button id="retitle" title="Have Claude write a new title from the transcript">↻ RETITLE</button>
+          <button id="edit-btn" title="Cut a stretch out of this recording (or off its start or end), or split it in two — the transcript is kept, nothing is transcribed again">✂ CUT / SPLIT</button>
+          ${item.combined ? `<button id="uncombine" title="Put back the ${item.combined.length} recordings this was combined from, as they were (with their own transcripts)">⧉ UNCOMBINE</button>` : ""}
+          <button id="retranscribe" title="Send the audio to Scribe again — e.g. after enrolling a speaker in the library — and relabel. Keeps the mix; replaces the transcript and any clean-up (uses transcription credit).">↻ RE-TRANSCRIBE</button>
+          ${canClean
+            ? `<span class="seg">
+                 <button id="m-verbatim" class="${mode === "verbatim" ? "on" : ""}">VERBATIM</button>
+                 <button id="m-clean" class="${mode === "clean" ? "on" : ""}" title="${(clean.removed || []).length.toLocaleString()} filler words hidden, ${((clean.edits || []).length + Object.keys(clean.replacements || {}).length).toLocaleString()} passages corrected">CLEANED −${(clean.removed || []).length.toLocaleString()}</button>
+               </span>
+               <button id="reclean" title="Run the AI clean-up again — picks up new key terms and prompt changes (uses API credit)">↻ RE-CLEAN</button>`
+            : item.clean_status === "working"
+            ? `<button disabled>✂ CLEANING…</button>`
+            : item.clean_status === "error"
+            ? `<button id="clean-btn" title="${esc(item.clean_error || "")}">✂ CLEAN-UP FAILED — RETRY</button>`
+            : `<button id="clean-btn" title="Ask Claude to hide filler words — every kept word stays clickable">✂ CLEAN UP FILLER</button>`}
+          <button id="prompt-btn" title="Edit the instructions Claude follows when cleaning up (applies to all recordings)">✎ PROMPT</button>
+          <button id="terms-btn" title="Edit the key terms: names and jargon ElevenLabs listens for and Claude's clean-up knows (applies to all recordings)">✎ TERMS</button>
+        </div>
+        ${heldNote(item)}
+      </div>
+      <div id="doc">${body || '<p class="txt">No speech was detected in this recording.</p>'}</div>
+      <div class="hint">CLICK A WORD TO JUMP · CLICK A SPEAKER TO RENAME · CLICK THE TITLE TO EDIT IT · SPACE PLAY/PAUSE · ← → SKIP 5s</div>
+    </main>
+    <button class="follow-btn" id="follow" hidden>RESUME FOLLOWING</button>
+    <div class="edit-bar" id="edit-bar" hidden></div>
+    <audio id="audio" src="${item.denoise === "ready" && denoiseOn() ? `/audio/${item.id}?src=denoised` : `/audio/${item.id}`}" preload="metadata"></audio>`;
+
+  player = makePlayer(item, transcript, tokens);
+  setupCutSplit(item, transcript, tokens, durMs);
+  wireHeld(app);
+
+  document.getElementById("terms-btn").onclick = async () => {
+    let result;
+    try {
+      result = await editKeyterms(item);
+    } catch (err) {
+      return alert("Couldn't load the key terms: " + err.message);
+    }
+    if (!result.reclean) return;
+    try {
+      await api(`/api/item/${item.id}/clean`, { method: "POST" });
+      showRecording(item.id);
+    } catch (err) { alert(err.message); }
+  };
+
+  document.getElementById("prompt-btn").onclick = async () => {
+    let result;
+    try {
+      result = await editCleanPrompt(item);
+    } catch (err) {
+      return alert("Couldn't load the prompt: " + err.message);
+    }
+    if (!result.reclean) return;
+    try {
+      await api(`/api/item/${item.id}/clean`, { method: "POST" });
+    } catch (err) {
+      alert("Couldn't start the clean-up: " + err.message);
+    }
+    showRecording(item.id);
+  };
+
+  // Title: click to edit in place (Enter or leaving the box saves, Esc cancels;
+  // saved empty, Claude writes a new one), or ↻ RETITLE for a fresh AI title.
+  const titleEl = document.getElementById("doc-title");
+  const showTitle = it => {
+    Object.assign(item, { ai_title: it.ai_title, title_manual: it.title_manual });
+    titleEl.textContent = dispTitle(item);
+    titleEl.title = `Click to edit the title${item.title_manual ? " (yours — kept even when the recording is rebuilt)" : ""} · from ${item.title}`;
+    document.getElementById("deck-title-text").textContent = dispTitle(item);
+    document.title = dispTitle(item) + " — Reel";
+  };
+  const setTitle = async body => {
+    const res = await api(`/api/item/${item.id}/name`, { method: "POST", body: JSON.stringify(body) });
+    showTitle(res.item);
+  };
+  titleEl.onclick = () => {
+    const box = document.createElement("input");
+    box.className = "doc-title-input";
+    box.value = dispTitle(item);
+    box.placeholder = "Leave empty for a new title from Claude";
+    titleEl.replaceWith(box);
+    box.focus(); box.select();
+    let done = false;
+    const finish = async save => {
+      if (done) return;
+      done = true;
+      const text = box.value.trim();
+      box.replaceWith(titleEl);
+      if (!save || text === dispTitle(item)) return;
+      titleEl.textContent = text || "Writing a title…";
+      try { await setTitle({ title: text }); }
+      catch (err) { titleEl.textContent = dispTitle(item); alert(err.message); }
+    };
+    box.onkeydown = e => {
+      if (e.key === "Enter") { e.preventDefault(); finish(true); }
+      else if (e.key === "Escape") finish(false);
+    };
+    box.onblur = () => finish(true);
+  };
+  const retitle = document.getElementById("retitle");
+  retitle.onclick = async () => {
+    if (item.title_manual && !confirm("Replace your title with a new one from Claude?")) return;
+    retitle.disabled = true; retitle.textContent = "RETITLING…";
+    try { await setTitle({}); }
+    catch (err) { alert(err.message); }
+    finally { retitle.disabled = false; retitle.textContent = "↻ RETITLE"; }
+  };
+
+  const uc = document.getElementById("uncombine");
+  if (uc) uc.onclick = async () => { if (await uncombine(item, uc)) location.hash = "#/"; };
+  const rt = document.getElementById("retranscribe");
+  if (rt) rt.onclick = async () => {
+    if (!confirm("Transcribe this recording again? The transcript and any clean-up are replaced (the mix is kept). This uses transcription credit.")) return;
+    try { await api(`/api/item/${item.id}/retranscribe`, { method: "POST" }); location.hash = "#/"; }
+    catch (err) { alert(err.message); }
+  };
+  const rc = document.getElementById("reclean");
+  if (rc) rc.onclick = async () => {
+    if (!confirm("Run the AI clean-up again? This replaces the current cleaned view and uses API credit.")) return;
+    try {
+      await api(`/api/item/${item.id}/clean`, { method: "POST" });
+    } catch (err) {
+      alert("Couldn't start the clean-up: " + err.message);
+    }
+    showRecording(item.id);
+  };
+
+  const switchMode = m => {
+    localStorage.setItem("reel-mode-" + item.id, m);
+    const st = player.snapshot();
+    renderRecording(item, transcript, clean);
+    player.restore(st);
+  };
+  const mv = document.getElementById("m-verbatim");
+  const mc = document.getElementById("m-clean");
+  if (mv) mv.onclick = () => { if (mode !== "verbatim") switchMode("verbatim"); };
+  if (mc) mc.onclick = () => { if (mode !== "clean") switchMode("clean"); };
+  const cb = document.getElementById("clean-btn");
+  if (cb) cb.onclick = async () => {
+    cb.disabled = true;
+    cb.textContent = "✂ STARTING…";
+    try {
+      await api(`/api/item/${item.id}/clean`, { method: "POST" });
+    } catch (err) {
+      alert("Couldn't start the clean-up: " + err.message);
+    }
+    showRecording(item.id);
+  };
+}
+
+/* -------------------------------------------------------------- cut / split */
+
+const EDIT_MARGIN_MS = 300; // of the pause beside a cut, kept next to the words that stay
+
+// ✂ CUT / SPLIT on a recording's page: pick words in the transcript (click,
+// shift-click or drag), then cut them out, cut everything before or after
+// them, or split the recording in two just before them (cut_item and
+// split_item in transcribe.py: the transcript is kept, nothing is transcribed again).
+function setupCutSplit(item, transcript, tokens, durMs) {
+  const btn = document.getElementById("edit-btn");
+  const bar = document.getElementById("edit-bar");
+  const doc = document.getElementById("doc");
+  const els = [];
+  doc.querySelectorAll(".w").forEach(el => { els[+el.dataset.k] = el; }); // els[k] shows tokens[k]
+  const words = transcript.words, n = words.length;
+  let editing = false, busy = false, anchor = null, sel = null; // sel: [first, last] token
+  // The edges of a cut beside word i: just after it ends, or just before it
+  // starts, keeping EDIT_MARGIN_MS of the pause there (half, if the pause is shorter).
+  const after = i => i < 0 ? 0 : Math.min(durMs, words[i].end + Math.min(EDIT_MARGIN_MS,
+    Math.max(0, (i + 1 < n ? words[i + 1].start : durMs) - words[i].end) / (i + 1 < n ? 2 : 1)));
+  const before = i => i >= n ? durMs : Math.max(0, words[i].start - Math.min(EDIT_MARGIN_MS,
+    Math.max(0, words[i].start - (i > 0 ? words[i - 1].end : 0)) / (i > 0 ? 2 : 1)));
+  const count = (a, b) => words.filter(w => (w.start + w.end) / 2 >= a && (w.start + w.end) / 2 < b).length;
+  const plural = (k, what) => `${k.toLocaleString()} ${what}${k === 1 ? "" : "s"}`;
+  const title = `“${dispTitle(item)}”`;
+  const kept = "The recording as it is now is kept in the archive on this Mac."
+    + (item.combined ? "\n\nIt can't be uncombined afterwards (what it was combined from stays in that archived copy)." : "");
+
+  function render() {
+    els.forEach(el => el.classList.remove("sel"));
+    if (!editing) return;
+    let i0, i1, r;
+    if (sel) {
+      for (let k = sel[0]; k <= sel[1]; k++) if (els[k]) els[k].classList.add("sel");
+      i0 = tokens[sel[0]].i; i1 = tokens[sel[1]].last;
+      r = { cut: [after(i0 - 1), before(i1 + 1)], before: [0, before(i0)], after: [after(i1), durMs],
+            split: i0 > 0 ? Math.round((words[i0 - 1].end + words[i0].start) / 2) : null, play: [words[i0].start, words[i1].end] };
+    }
+    const on = ok => sel && ok ? "" : "disabled";
+    bar.innerHTML = `
+      <div class="what">${sel
+        ? `PICKED <b>${clock(words[i0].start)} – ${clock(words[i1].end)}</b> · ${plural(i1 - i0 + 1, "WORD").toUpperCase()} · SHIFT-CLICK OR DRAG TO PICK MORE`
+        : "CUT / SPLIT · CLICK A WORD TO PICK IT, THEN SHIFT-CLICK ANOTHER (OR DRAG ACROSS THE TEXT) TO PICK A STRETCH"}</div>
+      <button data-act="play" ${on(true)} title="Play the picked words">▶ PLAY IT</button>
+      <button data-act="cut" ${on(sel && !(r.cut[0] <= 50 && r.cut[1] >= durMs - 50))} title="Cut the picked words out, with the pauses around them">✂ CUT IT OUT</button>
+      <button data-act="before" ${on(sel && r.before[1] > 50)} title="Cut off everything before the picked words">⇤ CUT ALL BEFORE</button>
+      <button data-act="after" ${on(sel && r.after[0] < durMs - 50)} title="Cut off everything after the picked words">CUT ALL AFTER ⇥</button>
+      <button data-act="split" ${on(sel && r.split)} title="Make two recordings of this one, the second starting with the picked words">⫽ SPLIT BEFORE IT</button>
+      <button data-act="done" class="done">DONE</button>`;
+    bar.onclick = e => {
+      const b = e.target.closest("button[data-act]");
+      if (!b || b.disabled || busy) return;
+      const act = b.dataset.act;
+      if (act === "done") toggle(false);
+      else if (act === "play") player.playRange(...r.play);
+      else if (act === "split") split(r.split);
+      else cut(r[act]);
+    };
+  }
+
+  function pickWord(k, e) {
+    if (busy) return;
+    if (e.shiftKey && anchor !== null) sel = [Math.min(anchor, k), Math.max(anchor, k)];
+    else { anchor = k; sel = [k, k]; player.seek(tokens[k].start, false); }
+    render();
+  }
+
+  function toggle(on) {
+    editing = on;
+    if (!on) anchor = sel = null;
+    document.body.classList.toggle("editing", on);
+    bar.hidden = !on;
+    player.setPick(on ? pickWord : null);
+    render();
+  }
+  btn.onclick = () => toggle(!editing);
+
+  doc.addEventListener("mousedown", e => { if (editing && e.shiftKey) e.preventDefault(); }); // no native shift-select
+  doc.addEventListener("mouseup", () => { // a drag across the text picks the words it covers
+    const s = getSelection();
+    if (!editing || busy || s.isCollapsed) return;
+    const ks = els.filter(el => s.containsNode(el, true)).map(el => +el.dataset.k);
+    s.removeAllRanges();
+    if (ks.length) { anchor = ks[0]; sel = [ks[0], ks[ks.length - 1]]; render(); }
+  });
+
+  async function run(label, call) {
+    busy = true;
+    bar.querySelectorAll("button").forEach(b => { b.disabled = true; });
+    bar.querySelector(".what").textContent = `${label} — A MINUTE OR SO FOR A LONG RECORDING`;
+    try { await call(); }
+    catch (err) { alert(err.message); busy = false; render(); }
+  }
+
+  function cut([a, b]) {
+    const said = plural(count(a, b), "word");
+    const what = a <= 50 ? `Cut the first ${clock(b)} (${said}) off ${title}?\n\nThe recording will start at what is now ${clock(b)}.`
+      : b >= durMs - 50 ? `Cut everything after ${clock(a)} (${clock(durMs - a)}, ${said}) off ${title}?`
+      : `Cut ${clock(a)} – ${clock(b)} (${clock(b - a)}, ${said}) out of ${title}?\n\n`
+        + `The audio there is erased from every file of this recording (the mix, the denoised copy${item.tracks ? " and each mic's own file" : ""}) `
+        + "and playback skips the gap; the timecodes after it stay as they are.";
+    if (!confirm(`${what}\n\nThose words leave the transcript and the clean-up; nothing is transcribed again. ${kept}`)) return;
+    run("CUTTING", async () => {
+      await api(`/api/item/${item.id}/cut`, { method: "POST", body: JSON.stringify({ start_ms: Math.round(a), end_ms: Math.round(b) }) });
+      showRecording(item.id);
+    });
+  }
+
+  function split(at) {
+    if (!confirm(`Split ${title} in two at ${clock(at)}?\n\n`
+      + `Part 1: 0:00 – ${clock(at)} (${plural(count(0, at), "word")})\nPart 2: ${clock(at)} – ${clock(durMs)} (${plural(count(at, durMs), "word")})\n\n`
+      + `Each part gets its share of the audio${item.tracks ? ", of each mic's file" : ""} and of the transcript, keeps the folder, flags, `
+      + `notes and speaker names, and gets its own title from Claude. Nothing is transcribed again. ${kept}`)) return;
+    run("SPLITTING", async () => {
+      await api(`/api/item/${item.id}/split`, { method: "POST", body: JSON.stringify({ at_ms: at }) });
+      location.hash = "#/";
+    });
+  }
+}
+
+/* ---------------------------------------------------------- clean-up prompt */
+
+// Opens the prompt editor; resolves {saved, reclean} once the dialog closes.
+// Three tiers: the built-in prompt (in transcribe.py), the user's own default
+// (clean_prompt_default.txt), and the active prompt (clean_prompt.txt).
+// The dialog lives on <body>, so re-rendering the transcript underneath is safe.
+async function editCleanPrompt(item) {
+  let cur = await api("/api/clean-prompt");
+  const canReclean = item && item.status === "ready" && item.clean_status !== "working";
+  const dlg = document.createElement("dialog");
+  dlg.className = "prompt-dlg";
+  dlg.innerHTML = `<form method="dialog">
+    <div class="prompt-head"><b>CLEAN-UP PROMPT</b><span class="prompt-status" id="p-status"></span></div>
+    <div class="prompt-note">Sent to Claude as the system prompt with every chunk of transcript, for all recordings.
+      <b>SAVE</b> uses it from the next clean-up on. <b>SAVE AS DEFAULT</b> also makes it your baseline — what
+      <b>RESET TO DEFAULT</b> restores; <b>BUILT-IN</b> brings back the prompt that ships with Reel. The reply
+      format is enforced separately, so rewrite the rules freely. Stored as <code>clean_prompt.txt</code> and
+      <code>clean_prompt_default.txt</code>. ⌘↩ saves · esc closes.</div>
+    <textarea id="p-text" spellcheck="false" aria-label="Clean-up prompt"></textarea>
+    <div class="prompt-foot">
+      <button type="button" id="p-reset" title="Load your default prompt into the editor">RESET TO DEFAULT</button>
+      <button type="button" id="p-builtin" title="Load the prompt that ships with Reel into the editor">BUILT-IN</button>
+      <span class="spacer"></span>
+      <button type="button" id="p-cancel">CANCEL</button>
+      <button type="button" id="p-default" title="Use this prompt and make it what RESET TO DEFAULT returns to">SAVE AS DEFAULT</button>
+      <button type="button" id="p-save" title="Use this prompt for clean-ups from now on">SAVE</button>
+      ${canReclean ? `<button type="button" class="primary" id="p-run" title="Save, then run the clean-up again on this recording (uses API credit)">SAVE &amp; RE-CLEAN</button>` : ""}
+    </div></form>`;
+  document.body.appendChild(dlg);
+
+  const $ = id => dlg.querySelector("#" + id);
+  const ta = $("p-text"), status = $("p-status");
+  const reset = $("p-reset"), builtin = $("p-builtin"), save = $("p-save");
+  const asDefault = $("p-default"), run = $("p-run");
+  ta.value = cur.prompt;
+
+  const norm = t => t.replace(/\r\n/g, "\n").trim();
+  const same = (a, b) => norm(a) === norm(b);
+  const isBuiltin = () => same(ta.value, cur.builtin);
+  const isDefault = () => same(ta.value, cur.default);
+  const dirty = () => !same(ta.value, cur.prompt);
+  const refresh = () => {
+    const tier = isBuiltin() ? "BUILT-IN" : isDefault() ? "DEFAULT" : "CUSTOM";
+    status.innerHTML = tier + (dirty() ? ' <span class="unsaved">· UNSAVED</span>' : "");
+    status.classList.toggle("custom", tier === "CUSTOM");
+    reset.disabled = isDefault();
+    builtin.hidden = same(cur.default, cur.builtin); // then RESET TO DEFAULT already does it
+    builtin.disabled = isBuiltin();
+    asDefault.disabled = isDefault();
+    save.disabled = !dirty();
+  };
+  ta.addEventListener("input", refresh);
+  refresh();
+
+  // Save the editor text; asDef also promotes it to the default. Resolves to
+  // whether the dialog may close.
+  const persist = async asDef => {
+    if (!asDef && !dirty()) return true;
+    const btn = asDef ? asDefault : save, label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "SAVING…";
+    try {
+      cur = await api("/api/clean-prompt", {
+        method: "POST", body: JSON.stringify({ prompt: ta.value, as_default: asDef }),
+      });
+      ta.value = cur.prompt; // server normalises whitespace
+      return true;
+    } catch (err) {
+      alert("Couldn't save the prompt: " + err.message);
+      return false;
+    } finally {
+      btn.textContent = label;
+      refresh();
+    }
+  };
+
+  return new Promise(resolve => {
+    let outcome = { saved: false, reclean: false };
+    const finish = o => { outcome = { ...outcome, ...o }; dlg.close(); };
+    const tryClose = () => { // Escape / CANCEL ask first when there are unsaved edits
+      if (dirty() && !confirm("Discard your changes to the prompt?")) return;
+      dlg.close();
+    };
+    const load = text => { ta.value = text; refresh(); ta.focus(); };
+    reset.onclick = () => load(cur.default);
+    builtin.onclick = () => load(cur.builtin);
+    $("p-cancel").onclick = tryClose;
+    save.onclick = async () => { if (await persist(false)) finish({ saved: true }); };
+    asDefault.onclick = async () => { if (await persist(true)) finish({ saved: true }); };
+    if (run) run.onclick = async () => { if (await persist(false)) finish({ saved: true, reclean: true }); };
+    ta.addEventListener("keydown", e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); save.click(); }
+    });
+    dlg.addEventListener("cancel", e => { e.preventDefault(); tryClose(); });
+    dlg.addEventListener("close", () => { dlg.remove(); resolve(outcome); });
+    dlg.showModal();
+    ta.focus();
+    ta.setSelectionRange(0, 0);
+    ta.scrollTop = 0;
+  });
+}
+
+/* ---------------------------------------------------------------- settings */
+
+// ⚙ SETTINGS: the API keys (kept in .env), the Google Drive backup and how new
+// recordings start out (settings.json, on this Mac). Everything saves as it changes.
+const KEY_INFO = {
+  elevenlabs: { name: "ELEVENLABS", what: `Needed to transcribe. Make one at <a href="https://elevenlabs.io" target="_blank" rel="noopener">elevenlabs.io</a>
+    (Developers → API keys) — and before your first recording, opt out of training: Terms and Privacy → Data use.` },
+  anthropic: { name: "ANTHROPIC", what: `Optional: titles and the filler clean-up, by Claude. Make one at
+    <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a> (API keys).` },
+};
+
+async function editSettings() {
+  let cur = await api("/api/settings");
+  const home = p => String(p).replace(/^\/Users\/[^/]+/, "~");
+  const dlg = document.createElement("dialog");
+  dlg.className = "prompt-dlg";
+  document.body.appendChild(dlg);
+
+  const keyRow = k => {
+    const s = cur.keys[k], info = KEY_INFO[k];
+    const have = !s.set ? "NOT SET" : "SET" + (s.hint ? ` · …${esc(s.hint)}` : "")
+      + (s.from === "environment" ? " · FROM YOUR SHELL'S ENVIRONMENT, WHICH WINS: CHANGE IT THERE" : "");
+    return `<div class="key-row">
+      <b>${info.name}</b>
+      <input type="password" data-key="${k}" autocomplete="off" spellcheck="false" aria-label="${info.name} API key"
+        placeholder="${s.set ? "paste a new key to replace it" : "paste your key here"}" ${s.from === "environment" ? "disabled" : ""}>
+      <button type="button" class="small" data-save-key="${k}" disabled>SAVE</button>
+      <div class="note" data-key-note="${k}">${have} — ${info.what}</div>
+    </div>`;
+  };
+  const backupStatus = () => {
+    const b = cur.backup_status || {};
+    if (b.running) return ["BACKING UP…", ""];
+    if (b.error && cur.backup) return [b.error, "bad"];
+    if (b.last) return [`LAST BACKED UP ${new Date(b.last * 1000).toLocaleString()}`
+      + (b.copied != null ? ` · ${b.copied} FILE${b.copied === 1 ? "" : "S"} COPIED THAT TIME` : ""), ""];
+    return [cur.backup ? "STARTING…" : "", ""];
+  };
+  const render = () => {
+    const folders = [...new Set([...(cur.drive_folders || []), ...(cur.backup_dir ? [cur.backup_dir] : [])])];
+    const [status, cls] = backupStatus();
+    dlg.innerHTML = `<form method="dialog">
+      <div class="prompt-head"><b>SETTINGS</b><span class="prompt-status">THIS MAC</span></div>
+      <div class="settings">
+        <h3>API KEYS</h3>
+        ${keyRow("elevenlabs")}
+        ${keyRow("anthropic")}
+        <div class="note">Kept in <code>.env</code> next to <code>transcribe.py</code>, readable only by you. Audio goes to
+          ElevenLabs to be transcribed (their copy of the transcript is deleted once it's saved here), transcript text to
+          Anthropic for titles and the clean-up.</div>
+        <h3>GOOGLE DRIVE BACKUP</h3>
+        <label><input type="checkbox" data-setting="backup" ${cur.backup ? "checked" : ""}> BACK UP TO GOOGLE DRIVE
+          <span>Copies each recording — transcript, clean-up and audio — into <code>Reel backup/</code> in your Drive,
+          through Google Drive for desktop: every 15 minutes while Reel runs, and soon after each new recording.
+          Nothing in the backup is ever deleted.</span></label>
+        ${(cur.drive_folders || []).length || cur.backup_dir ? "" : `<div class="note bad">No Google Drive on this Mac yet: install
+          <a href="${esc(cur.drive_download)}" target="_blank" rel="noopener">Google Drive for desktop</a> and sign in,
+          then open the settings again. Or back up to any other folder (an external disk, say).</div>`}
+        <div class="backup-where"><b>FOLDER</b>
+          <select id="b-dir" aria-label="Backup folder">
+            ${folders.map(p => `<option value="${esc(p)}" ${p === cur.backup_dir ? "selected" : ""}>${esc(home(p))}</option>`).join("")}
+            ${folders.length ? "" : '<option value="" selected>—</option>'}
+            <option value="__other__">other folder…</option></select>
+          <button type="button" class="small" id="b-now" ${cur.backup ? "" : "disabled"}>BACK UP NOW</button>
+          <div class="note ${cls}" id="b-status">${esc(status)}</div>
+        </div>
+        <label><input type="checkbox" data-setting="backup_tracks" ${cur.backup_tracks ? "checked" : ""}> INCLUDE EACH MIC'S OWN FILES
+          <span>For multi-mic recordings, the recorders' original files too, so a restored recording can still be
+          re-mixed, combined or given another mic. Large: often ten times everything else.</span></label>
+        <h3>NEW RECORDINGS</h3>
+        <label><input type="checkbox" data-setting="no_training" ${cur.no_training ? "checked" : ""}> NOT FOR TRAINING BY DEFAULT
+          <span>Recorded here, added, or from the inbox. ASK FIRST reads <code>${esc(DEFAULT_NOTE)}</code> until someone
+          writes the real reason; untick it on any recording as usual.</span></label>
+        <div class="note">Your recordings are in <code>${esc(home(cur.data))}</code>.</div>
+      </div>
+      <div class="prompt-foot"><span class="spacer"></span><button type="button" class="primary" id="s-done">DONE</button></div>
+    </form>`;
+    wire();
+  };
+  const saveSetting = async body => {
+    try {
+      cur = await api("/api/settings", { method: "POST", body: JSON.stringify(body) });
+    } catch (err) { alert("Couldn't save the setting: " + err.message); }
+    render();
+  };
+  const wire = () => {
+    dlg.querySelectorAll("[data-key]").forEach(input => {
+      const k = input.dataset.key, btn = dlg.querySelector(`[data-save-key="${k}"]`);
+      const note = dlg.querySelector(`[data-key-note="${k}"]`);
+      input.oninput = () => { btn.disabled = !input.value.trim(); };
+      input.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); if (!btn.disabled) btn.click(); } };
+      btn.onclick = async () => {
+        btn.disabled = true; btn.textContent = "CHECKING…";
+        try {
+          const res = await api("/api/keys", { method: "POST", body: JSON.stringify({ service: k, key: input.value }) });
+          cur = res;
+          render();
+          const n = dlg.querySelector(`[data-key-note="${k}"]`);
+          n.classList.add("ok");
+          n.textContent = res.check === "ok" ? `SAVED ✓ — ${KEY_INFO[k].name} ACCEPTED IT`
+            : "SAVED — it couldn't be checked just now (offline?, or a key limited to fewer permissions); it's used from the next request on.";
+        } catch (err) {
+          note.classList.add("bad"); note.textContent = err.message;
+          btn.disabled = false; btn.textContent = "SAVE";
+        }
+      };
+    });
+    dlg.querySelectorAll("[data-setting]").forEach(box => {
+      box.onchange = () => saveSetting({ [box.dataset.setting]: box.checked });
+    });
+    const dir = dlg.querySelector("#b-dir");
+    dir.onchange = () => {
+      if (dir.value !== "__other__") return saveSetting({ backup_dir: dir.value });
+      const path = (prompt("Folder to back up to (its full path, e.g. /Volumes/Backup):", cur.backup_dir || "") || "").trim();
+      if (path) saveSetting({ backup_dir: path }); else render();
+    };
+    dlg.querySelector("#b-now").onclick = async () => {
+      try { cur = await api("/api/backup", { method: "POST" }); } catch (err) { alert(err.message); }
+      render();
+    };
+    dlg.querySelector("#s-done").onclick = () => dlg.close();
+  };
+  const poll = setInterval(async () => { // keep the backup's status current while the dialog is open
+    try {
+      const st = await api("/api/settings");
+      cur.backup_status = st.backup_status;
+      const el = dlg.querySelector("#b-status"), [text, cls] = backupStatus();
+      if (el) { el.textContent = text; el.className = "note " + cls; }
+    } catch (err) { /* the next tick tries again */ }
+  }, 2000);
+  render();
+  dlg.addEventListener("close", () => {
+    clearInterval(poll);
+    dlg.remove();
+    if (!location.hash || location.hash === "#/") showLibrary();
+  });
+  dlg.showModal();
+}
+
+/* ---------------------------------------------------------------- key terms */
+
+// Opens the key-terms editor (keyterms.txt); resolves {saved, reclean} once closed.
+async function editKeyterms(item) {
+  let cur = await api("/api/keyterms");
+  const canReclean = item && item.status === "ready" && item.clean_status !== "working";
+  const dlg = document.createElement("dialog");
+  dlg.className = "prompt-dlg";
+  dlg.innerHTML = `<form method="dialog">
+    <div class="prompt-head"><b>KEY TERMS</b><span class="prompt-status" id="t-status"></span></div>
+    <div class="prompt-note">Names and jargon in your recordings, one per line, optionally with an explanation in
+      brackets: <code>ASR (automatic speech recognition)</code>. ElevenLabs listens for each term and its
+      explanation (up to 5 words, under 50 characters each) from the next transcription on; Claude's clean-up gets the
+      whole list to fix mis-heard words. Lines starting with # are notes. Stored as <code>keyterms.txt</code>
+      (on this Mac). ⌘↩ saves · esc closes.</div>
+    <textarea id="t-text" spellcheck="false" aria-label="Key terms"></textarea>
+    <div class="prompt-foot">
+      <span class="prompt-status" id="t-skipped"></span>
+      <span class="spacer"></span>
+      <button type="button" id="t-cancel">CANCEL</button>
+      <button type="button" id="t-save" title="Use these terms from the next transcription and clean-up on">SAVE</button>
+      ${canReclean ? `<button type="button" class="primary" id="t-run" title="Save, then run the clean-up again on this recording (uses API credit)">SAVE &amp; RE-CLEAN</button>` : ""}
+    </div></form>`;
+  document.body.appendChild(dlg);
+
+  const $ = id => dlg.querySelector("#" + id);
+  const ta = $("t-text"), status = $("t-status"), skipped = $("t-skipped"), save = $("t-save"), run = $("t-run");
+  ta.value = cur.text;
+  const norm = t => t.replace(/\r\n/g, "\n").trimEnd();
+  const dirty = () => norm(ta.value) !== norm(cur.text);
+  const refresh = () => {
+    status.innerHTML = `${cur.terms} TERM${cur.terms === 1 ? "" : "S"} · ${cur.scribe} SENT TO ELEVENLABS`
+      + (dirty() ? ' <span class="unsaved">· UNSAVED</span>' : "");
+    skipped.textContent = cur.skipped.length ? `TOO LONG FOR ELEVENLABS (CLAUDE STILL GETS THEM): ${cur.skipped.join(", ")}` : "";
+    save.disabled = !dirty();
+  };
+  ta.addEventListener("input", refresh);
+  refresh();
+
+  const persist = async () => {
+    if (!dirty()) return true;
+    const label = save.textContent;
+    save.disabled = true;
+    save.textContent = "SAVING…";
+    try {
+      cur = await api("/api/keyterms", { method: "POST", body: JSON.stringify({ text: ta.value }) });
+      ta.value = cur.text;
+      return true;
+    } catch (err) {
+      alert("Couldn't save the key terms: " + err.message);
+      return false;
+    } finally {
+      save.textContent = label;
+      refresh();
+    }
+  };
+
+  return new Promise(resolve => {
+    let outcome = { saved: false, reclean: false };
+    const finish = o => { outcome = { ...outcome, ...o }; dlg.close(); };
+    const tryClose = () => {
+      if (dirty() && !confirm("Discard your changes to the key terms?")) return;
+      dlg.close();
+    };
+    $("t-cancel").onclick = tryClose;
+    save.onclick = async () => { if (await persist()) finish({ saved: true }); };
+    if (run) run.onclick = async () => { if (await persist()) finish({ saved: true, reclean: true }); };
+    ta.addEventListener("keydown", e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); (dirty() ? save : $("t-cancel")).click(); }
+    });
+    dlg.addEventListener("cancel", e => { e.preventDefault(); tryClose(); });
+    dlg.addEventListener("close", () => { dlg.remove(); resolve(outcome); });
+    dlg.showModal();
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    ta.scrollTop = ta.scrollHeight;
+  });
+}
+
+function makePlayer(item, transcript, tokens) {
+  const audio = document.getElementById("audio");
+  const mixUrl = () => (item.denoise === "ready" && denoiseOn()) ? `/audio/${item.id}?src=denoised` : `/audio/${item.id}`;
+  const playBtn = document.getElementById("play");
+  const rateBtn = document.getElementById("rate");
+  const followBtn = document.getElementById("follow");
+  const recdot = document.getElementById("recdot");
+  const cur = document.getElementById("cur");
+  const fill = document.getElementById("fill");
+  const doc = document.getElementById("doc");
+  const rates = [1, 1.25, 1.5, 1.75, 2];
+
+  let follow = true;
+  let activeIdx = -1;
+  let raf = 0;
+  let destroyed = false;
+  let stopAt = null; // ms: pause there (playing a picked stretch)
+  let pick = null;   // while cutting/splitting: a word click picks the word instead of playing it
+  const cuts = item.cuts || [];
+  const fmtRate = r => r.toFixed(2).replace(/0$/, "").replace(/\.0$/, ".0") + "×";
+
+  // Multi-mic: the transcript lives on the mix's timeline. When a raw recorder
+  // file is playing instead, map between its own clock and the mix's:
+  // file_time = offset + mix_time · (1 + drift).
+  let srcTrack = -1; // -1 = the mix
+  const trk = () => item.tracks[srcTrack];
+  const toMix = s => srcTrack < 0 ? s : (s - trk().offset) / (1 + (trk().drift || 0));
+  const fromMix = s => srcTrack < 0 ? s : trk().offset + s * (1 + (trk().drift || 0));
+  const nowMs = () => toMix(audio.currentTime) * 1000;
+
+  const durMs = () => (srcTrack < 0 && audio.duration ? audio.duration * 1000
+    : transcript.audio_duration_ms || item.duration_ms || 0);
+
+  // Greatest display token whose start <= t; -1 if before the first one.
+  function findToken(t) {
+    let lo = 0, hi = tokens.length - 1, ans = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (tokens[mid].start <= t) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    return ans;
+  }
+
+  function keepInView(el) {
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+    if (r.top < vh * 0.22 || r.bottom > vh * 0.72) {
+      window.scrollTo({
+        top: window.scrollY + r.top - vh * 0.4,
+        behavior: motionOK ? "smooth" : "auto",
+      });
+    }
+  }
+
+  // Remember the listening position per recording.
+  const posKey = "reel-pos-" + item.id;
+  let lastSavedPos = 0;
+  const savePos = () => {
+    const t = toMix(audio.currentTime);
+    if (Math.abs(t - lastSavedPos) < 2) return;
+    lastSavedPos = t;
+    localStorage.setItem(posKey, String(t));
+  };
+
+  function tick() {
+    let t = nowMs();
+    const cut = cuts.find(([a, b]) => t >= a && t < b - 20);
+    if (cut) { audio.currentTime = fromMix(cut[1] / 1000); t = cut[1]; } // silent: skip it
+    if (stopAt !== null && t >= stopAt) { stopAt = null; audio.pause(); }
+    cur.textContent = clock(t);
+    savePos();
+    const d = durMs();
+    fill.style.width = d ? Math.min(100, t / d * 100) + "%" : "0";
+    const k = findToken(t);
+    if (k !== activeIdx) {
+      const prev = doc.querySelector(".w.active");
+      if (prev) prev.classList.remove("active");
+      activeIdx = k;
+      if (k >= 0) {
+        const el = doc.querySelector(`.w[data-k="${k}"]`);
+        if (el) {
+          el.classList.add("active");
+          if (follow && !audio.paused) keepInView(el);
+        }
+      }
+    }
+  }
+
+  function loop() {
+    if (destroyed || audio.paused) return;
+    tick();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function seek(ms, andPlay) {
+    stopAt = null;
+    audio.currentTime = fromMix(ms / 1000);
+    if (andPlay && audio.paused) audio.play();
+    tick();
+  }
+
+  // Switch between the mix and a single recorder's file, keeping the position.
+  const srcSeg = document.getElementById("src");
+  function switchSource(i, atMix) {
+    if (i === srcTrack) return;
+    const wasPlaying = !audio.paused;
+    const tMix = atMix != null ? atMix : toMix(audio.currentTime);
+    srcTrack = i;
+    srcSeg.querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.src === i));
+    audio.src = i < 0 ? mixUrl() : `/audio/${item.id}?track=${i}`;
+    audio.addEventListener("loadedmetadata", () => {
+      audio.currentTime = Math.max(0, fromMix(tMix));
+      if (wasPlaying) audio.play();
+      tick();
+    }, { once: true });
+    audio.load();
+  }
+  const placeSel = document.getElementById("place-group");
+  const trainBox = document.getElementById("no-training");
+  const noteIn = key => document.querySelector(`.place [data-note="${key}"]`);
+  // Show the folder, the box and its note as the server now has them.
+  const showPlace = () => {
+    placeSel.innerHTML = groupOptions(item.group);
+    trainBox.checked = !!item.no_training; trainBox.parentElement.classList.toggle("on", !!item.no_training);
+    for (const [key, shown] of [["training_ask", item.no_training]]) {
+      noteIn(key).value = item[key] || ""; noteIn(key).parentElement.hidden = !shown;
+      noteIn(key).classList.toggle("dflt", item[key] === DEFAULT_NOTE);
+    }
+  };
+  const update = async call => {
+    try {
+      const res = await call();
+      for (const k of ["group", "no_training", "training_ask"]) item[k] = res[k];
+    } catch (err) { alert(err.message); }
+    showPlace();
+  };
+  if (placeSel) {
+    placeSel.onchange = () => {
+      let g = placeSel.value;
+      if (g === "__new__") { g = askNewFolder(); if (!g) { placeSel.value = item.group; return; } }
+      update(() => placeItem(item.id, g));
+    };
+    trainBox.onchange = () => update(() => setFlags(item.id, { no_training: trainBox.checked }));
+    for (const key of Object.keys(NOTES)) {
+      const box = noteIn(key);
+      box.onchange = () => update(() => setFlags(item.id, { [key]: box.value }));
+      box.onkeydown = e => { if (e.key === "Enter") box.blur(); };
+    }
+  }
+  const dnBtn = document.getElementById("denoise");
+  if (dnBtn) dnBtn.onclick = () => {
+    localStorage.setItem("reel-denoise", denoiseOn() ? "off" : "on");
+    dnBtn.classList.toggle("on", denoiseOn());
+    if (srcTrack < 0) { const t = audio.currentTime; srcTrack = -2; switchSource(-1, toMix(t)); }
+  };
+  if (srcSeg) {
+    srcSeg.querySelectorAll("button").forEach(b => { b.onclick = () => switchSource(+b.dataset.src); });
+    audio.addEventListener("error", () => {
+      if (srcTrack < 0) return;
+      const b = srcSeg.querySelector(`button[data-src="${srcTrack}"]`);
+      if (b) { b.classList.add("src-bad"); b.title = "This browser can't play the raw file (try the mix)"; }
+      switchSource(-1);
+    });
+  }
+
+  audio.addEventListener("play", () => {
+    playBtn.textContent = "PAUSE";
+    recdot.classList.add("on");
+    loop();
+  });
+  audio.addEventListener("pause", () => {
+    playBtn.textContent = "PLAY";
+    recdot.classList.remove("on");
+    cancelAnimationFrame(raf);
+    lastSavedPos = -10; // force a save through the throttle
+    tick();
+  });
+  audio.addEventListener("ended", () => localStorage.removeItem(posKey));
+  audio.addEventListener("seeked", tick);
+  audio.addEventListener("loadedmetadata", tick);
+
+  const rememberedPos = parseFloat(localStorage.getItem(posKey) || "0");
+  if (rememberedPos > 5) {
+    const resumeAt = () => {
+      if (!audio.duration || rememberedPos < audio.duration - 5) {
+        audio.currentTime = fromMix(rememberedPos);
+        tick();
+        const el = doc.querySelector(".w.active");
+        if (el) keepInView(el);
+      }
+    };
+    if (audio.readyState >= 1) resumeAt();
+    else audio.addEventListener("loadedmetadata", resumeAt, { once: true });
+  }
+
+  playBtn.onclick = () => audio.paused ? audio.play() : audio.pause();
+  rateBtn.onclick = () => {
+    const next = rates[(rates.indexOf(audio.playbackRate) + 1) % rates.length] || 1;
+    audio.playbackRate = next;
+    rateBtn.textContent = fmtRate(next);
+  };
+
+  document.getElementById("bar").onclick = e => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    seek((e.clientX - rect.left) / rect.width * durMs(), false);
+  };
+
+  const spkName = s => (item.speaker_names || {})[s] || prettySpk(s);
+
+  async function renameSpeaker(id) {
+    const name = prompt(`Name for ${prettySpk(id)}:`, (item.speaker_names || {})[id] || "");
+    if (name === null) return;
+    const names = { ...(item.speaker_names || {}) };
+    if (name.trim()) names[id] = name.trim(); else delete names[id];
+    const res = await api(`/api/item/${item.id}/speakers`, {
+      method: "POST", body: JSON.stringify({ names }),
+    });
+    item.speaker_names = res.item.speaker_names;
+    doc.querySelectorAll(`.spk[data-spk="${CSS.escape(id)}"]`)
+      .forEach(el => { el.textContent = spkName(id); });
+  }
+
+  doc.addEventListener("click", e => {
+    const w = e.target.closest(".w");
+    const tc = e.target.closest(".tc-btn");
+    const sp = e.target.closest(".spk");
+    if (w && pick) pick(+w.dataset.k, e);
+    else if (w) { follow = true; followBtn.hidden = true; seek(tokens[+w.dataset.k].start, true); }
+    else if (tc) { follow = true; followBtn.hidden = true; seek(+tc.dataset.t, true); }
+    else if (sp) renameSpeaker(sp.dataset.spk).catch(err => alert(err.message));
+  });
+
+  const plainText = () => {
+    let tk = 0;
+    return buildSections(transcript).map(sec => {
+      const lastIdx = sec.idx[sec.idx.length - 1];
+      const mine = [];
+      while (tk < tokens.length && tokens[tk].i <= lastIdx) mine.push(tokens[tk++]);
+      if (!mine.length) return null;
+      const text = withPauses(transcript.words, mine).map(({ t, pause }) => (pause ? "… " : "") + t.text).join(" ");
+      if (sec.cont) return text;
+      return (sec.speaker ? `${spkName(sec.speaker)} [${clock(sec.start)}]:\n` : `[${clock(sec.start)}]\n`) + text;
+    }).filter(Boolean).join("\n\n");
+  };
+
+  document.getElementById("copy").onclick = async e => {
+    await navigator.clipboard.writeText(plainText());
+    e.target.textContent = "COPIED ✓";
+    setTimeout(() => { e.target.textContent = "COPY TEXT"; }, 1600);
+  };
+  document.getElementById("download").onclick = () => {
+    const url = URL.createObjectURL(new Blob([plainText()], { type: "text/plain" }));
+    const a = Object.assign(document.createElement("a"), {
+      href: url, download: dispTitle(item).replace(/\.[^.]+$/, "") + ".txt",
+    });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000); // Safari drops the download if it's revoked at once
+  };
+
+  const userScrolled = () => {
+    if (follow && !audio.paused) { follow = false; followBtn.hidden = false; }
+  };
+  window.addEventListener("wheel", userScrolled, { passive: true });
+  window.addEventListener("touchmove", userScrolled, { passive: true });
+  followBtn.onclick = () => {
+    follow = true;
+    followBtn.hidden = true;
+    const el = doc.querySelector(".w.active");
+    if (el) keepInView(el);
+  };
+
+  const onKey = e => {
+    if (e.target.matches("input, textarea, select") || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.code === "Space") { e.preventDefault(); playBtn.click(); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); seek(Math.max(0, nowMs() - 5000), false); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); seek(nowMs() + 5000, false); }
+  };
+  document.addEventListener("keydown", onKey);
+
+  tick();
+  return {
+    seek,
+    playRange(a, b) { follow = true; followBtn.hidden = true; seek(a, true); stopAt = b; },
+    setPick(fn) { pick = fn; },
+    snapshot() {
+      return { t: toMix(audio.currentTime), paused: audio.paused, rate: audio.playbackRate, src: srcTrack };
+    },
+    restore(st) {
+      const apply = () => {
+        if (st.src != null && st.src !== srcTrack && srcSeg) {
+          audio.playbackRate = st.rate;
+          rateBtn.textContent = fmtRate(st.rate);
+          if (!st.paused) audio.play().catch(() => {});
+          switchSource(st.src, st.t);
+          return;
+        }
+        audio.currentTime = fromMix(st.t);
+        audio.playbackRate = st.rate;
+        rateBtn.textContent = fmtRate(st.rate);
+        if (!st.paused) audio.play();
+        tick();
+      };
+      if (audio.readyState >= 1) apply();
+      else audio.addEventListener("loadedmetadata", apply, { once: true });
+    },
+    destroy() {
+      destroyed = true;
+      cancelAnimationFrame(raf);
+      audio.pause();
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", userScrolled);
+      window.removeEventListener("touchmove", userScrolled);
+    },
+  };
+}
+
+route();
+</script>
+</body>
+</html>

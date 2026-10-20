@@ -1,0 +1,23 @@
+# Recordings live in ~/Reel (or REEL_DATA), outside the code. These keep audio
+# out of the repository should any end up next to it.
+/recordings/
+*.wav
+*.WAV
+*.m4a
+*.mp3
+*.webm
+*.tmp
+
+# your API keys and local settings
+.env*
+settings.json
+keyterms.txt
+clean_prompt.txt
+clean_prompt_default.txt
+
+# fetched binaries (bin/fetch-deepfilter.sh downloads them)
+bin/deep-filter
+bin/*.tar.gz
+
+__pycache__/
+.DS_Store
